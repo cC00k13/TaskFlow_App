@@ -1,0 +1,233 @@
+/* =========================================
+   Reset y Configuración Base
+   ========================================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Fondo principal con el gradiente cálido de tu imagen de inspiración */
+body {
+    background: linear-gradient(135deg, #ff7555, #ff2a5f);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* =========================================
+   Estructura de la Tarjeta de Registro
+   ========================================= */
+.login-card {
+    display: flex;
+    width: 100%;
+    max-width: 900px;
+    min-height: 600px;
+    background-color: #fff;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border-radius: 8px; /* Bordes ligeramente redondeados */
+    overflow: hidden;
+}
+
+/* --- Panel Izquierdo (Imagen) --- */
+.card-left {
+    flex: 1;
+    /* Imagen de playa/costa similar a la de tu ejemplo */
+    background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1)), 
+                url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80') center/cover no-repeat;
+    color: white;
+    padding: 60px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-left h1 {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.card-left p {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: #f0f0f0;
+}
+
+/* --- Panel Derecho (Formulario) --- */
+.card-right {
+    flex: 1;
+    padding: 50px 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #ffffff;
+}
+
+.card-right h2 {
+    font-size: 2rem;
+    margin-bottom: 5px;
+    color: #222;
+}
+
+.subtitle {
+    font-size: 0.85rem;
+    color: #7a7a7a;
+    margin-bottom: 35px;
+}
+
+.subtitle a {
+    color: #4a90e2;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+.subtitle a:hover {
+    text-decoration: underline;
+}
+
+/* =========================================
+   Campos del Formulario
+   ========================================= */
+.input-group {
+    margin-bottom: 25px;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #ddd; 
+    outline: none;
+    font-size: 0.85rem;
+    color: #333;
+    background: transparent;
+    transition: border-color 0.3s ease;
+}
+
+.input-group input:focus {
+    border-bottom: 2px solid #ff2a5f; /* Resalta en el color del tema al escribir */
+}
+
+.input-group input::placeholder {
+    color: #aaa;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 1px;
+}
+
+/* Checkbox de términos */
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 30px;
+    font-size: 0.75rem;
+    color: #7a7a7a;
+}
+
+.checkbox-group input[type="checkbox"] {
+    accent-color: #ff2a5f;
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+/* Botón de Enviar (Rojo/Rosa como en el diseño) */
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 30px;
+}
+
+.btn-submit {
+    background-color: #ff2a5f; 
+    color: white;
+    border: none;
+    padding: 12px 40px;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(255, 42, 95, 0.3);
+    transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.btn-submit:hover {
+    background-color: #e01f4f;
+    transform: translateY(-2px);
+}
+
+/* =========================================
+   Redes Sociales (Parte inferior)
+   ========================================= */
+.social-login-bottom {
+    margin-top: 10px;
+}
+
+.social-login-bottom p {
+    font-size: 0.75rem;
+    color: #aaa;
+    margin-bottom: 15px;
+}
+
+.social-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.social-buttons button {
+    padding: 8px 10px;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    flex: 1;
+    transition: opacity 0.3s;
+}
+
+.social-buttons button:hover {
+    opacity: 0.85;
+}
+
+.btn-facebook { background-color: #3b5998; }
+.btn-twitter { background-color: #1da1f2; }
+.btn-google { background-color: #db4437; }
+
+/* =========================================
+   Responsive (Pantallas pequeñas)
+   ========================================= */
+@media (max-width: 800px) {
+    .login-card {
+        flex-direction: column;
+        height: auto;
+    }
+    .card-left {
+        padding: 40px;
+        text-align: center;
+    }
+    .card-right {
+        padding: 40px;
+    }
+    .social-buttons {
+        flex-direction: column;
+    }
+}

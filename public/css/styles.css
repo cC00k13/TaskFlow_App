@@ -1,0 +1,183 @@
+/* Reseteo básico */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Fondo principal de la página simulando el paisaje morado */
+body {
+    background: linear-gradient(135deg, #371a52, #852b61);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.login-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Tarjeta principal */
+.login-card {
+    display: flex;
+    width: 100%;
+    max-width: 900px;
+    height: 550px;
+    background-color: #fff;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+}
+
+/* --- Panel Izquierdo --- */
+.card-left {
+    flex: 1;
+    /* Imagen de fondo de ejemplo con un filtro oscuro encima */
+    background: linear-gradient(to right, rgba(29, 21, 56, 0.4), rgba(184, 56, 88, 0.4)), 
+                url('https://images.unsplash.com/photo-1557672172-298e090bd0f1?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80') center/cover no-repeat;
+    color: white;
+    padding: 60px 50px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.card-left h1 {
+    font-size: 3.5rem;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    font-weight: 700;
+}
+
+.card-left p {
+    font-size: 0.85rem;
+    line-height: 1.5;
+    margin-bottom: 40px;
+    color: #e0e0e0;
+}
+
+.social-login p {
+    font-size: 0.8rem;
+    margin-bottom: 15px;
+}
+
+.social-buttons {
+    display: flex;
+    gap: 15px;
+}
+
+.social-buttons button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 20px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    transition: opacity 0.3s;
+}
+
+.social-buttons button:hover {
+    opacity: 0.9;
+}
+
+.btn-facebook {
+    background-color: #3b5998;
+}
+
+.btn-twitter {
+    background-color: #1da1f2;
+}
+
+/* --- Panel Derecho (Formulario) --- */
+.card-right {
+    flex: 1;
+    padding: 60px 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background-color: #ffffff;
+}
+
+.card-right h2 {
+    font-size: 2rem;
+    margin-bottom: 40px;
+    color: #000;
+}
+
+.input-group {
+    margin-bottom: 30px;
+}
+
+/* Estilo de los inputs tipo "Material Design" */
+.input-group input {
+    width: 100%;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 2px solid #3b5998; /* Línea azul inferior */
+    outline: none;
+    font-size: 0.9rem;
+    color: #333;
+    background: transparent;
+}
+
+.input-group input::placeholder {
+    color: #7a7a7a;
+    font-weight: 500;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end; /* Alinea el botón a la derecha */
+    margin-top: 10px;
+    margin-bottom: 40px;
+}
+
+.btn-submit {
+    background-color: #3b5a9a; 
+    color: white;
+    border: none;
+    padding: 12px 35px;
+    border-radius: 25px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.btn-submit:hover {
+    background-color: #2a4175;
+}
+
+.register-link {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #333;
+}
+
+.register-link a {
+    color: #5a3d7a;
+    text-decoration: none;
+    margin-left: 5px;
+}
+
+.register-link a:hover {
+    text-decoration: underline;
+}
+
+/* Adaptabilidad para pantallas más pequeñas */
+@media (max-width: 800px) {
+    .login-card {
+        flex-direction: column;
+        height: auto;
+    }
+    .card-left, .card-right {
+        padding: 40px;
+    }
+}

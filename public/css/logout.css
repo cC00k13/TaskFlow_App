@@ -1,0 +1,102 @@
+/* =========================================
+   Reset y Fondo Base (Mismo estilo de TaskFlow)
+   ========================================= */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: linear-gradient(135deg, #ff7555, #ff2a5f);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.logout-container {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* =========================================
+   Tarjeta de Confirmación de Logout
+   ========================================= */
+.logout-card {
+    background-color: #fff;
+    width: 100%;
+    max-width: 450px; /* Tarjeta más angosta para un solo mensaje */
+    padding: 50px 40px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+/* =========================================
+   Icono Animado
+   ========================================= */
+.logout-icon i {
+    font-size: 5rem;
+    color: #ff2a5f; /* Color de acento de TaskFlow */
+    margin-bottom: 10px;
+    /* Animación de entrada */
+    animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* =========================================
+   Textos
+   ========================================= */
+.logout-card h2 {
+    font-size: 2.2rem;
+    color: #222;
+    font-weight: 800;
+}
+
+.logout-card p {
+    font-size: 1rem;
+    color: #7a7a7a;
+    line-height: 1.6;
+    margin-bottom: 15px;
+    padding: 0 10px;
+}
+
+/* =========================================
+   Botón de Retorno
+   ========================================= */
+.btn-return {
+    display: inline-block;
+    background-color: #ff2a5f;
+    color: white;
+    text-decoration: none;
+    padding: 12px 35px;
+    border-radius: 25px;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 4px 10px rgba(255, 42, 95, 0.3);
+    transition: transform 0.2s ease, background-color 0.3s ease;
+}
+
+.btn-return:hover {
+    background-color: #e01f4f;
+    transform: translateY(-2px);
+}
