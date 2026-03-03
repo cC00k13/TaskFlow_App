@@ -3,6 +3,8 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\DashboardController;
+
 
 // 1. LA ENTRADA: Siempre empezamos en el Login
 Route::get('/', function () {
@@ -30,9 +32,9 @@ Route::post('/registro', function () {
 })->name('registro.post');
 
 // 3. EL DASHBOARD: Tu panel principal de tareas
-Route::get('/dashboard', function () {
-    return view('dashboard');
-})->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->name('dashboard') // Importante: así puedes usar route('dashboard')
+    ->middleware('auth'); // Protege la ruta
 
 // 4. EL LOGOUT: Botón de salida
 Route::post('/logout', function () {

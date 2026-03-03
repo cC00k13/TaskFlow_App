@@ -5,6 +5,9 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
+use App\Providers\RouteServiceProvider;
+use Illuminate\Support\Facades\Auth;
+
 
 class RedirectIfAuthenticated
 {
@@ -13,8 +16,13 @@ class RedirectIfAuthenticated
      *
      * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next, $guard = null): Response
     {
+        if (Auth::guard($guard)->check()) {
+            // Usuarios autenticados van al dashboard
+            return redirect(RouteServiceProvider::HOME);
+        }
+
         return $next($request);
     }
 }
