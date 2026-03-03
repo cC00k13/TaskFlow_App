@@ -2,11 +2,17 @@
 
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\RegisterController;
 
 // 1. LA ENTRADA: Siempre empezamos en el Login
 Route::get('/', function () {
     return view('login');
 })->name('login');
+
+Route::get('/signup', [RegisterController::class, 'create'])->name('signup.form');
+
+Route::post('/signup', [RegisterController::class, 'store'])->name('signup.store');
+
 
 // Acción: Al darle clic a "Enviar" en el Login, te lleva al Dashboard
 Route::post('/login', function () {
