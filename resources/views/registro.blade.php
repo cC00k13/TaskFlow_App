@@ -29,6 +29,12 @@
                     
                     <div class="input-group">
                         <input type="email" id="email" name="email" required placeholder="EMAIL ID">
+
+                        @error('email')
+                            <div style="color: red; font-size: 14px; margin-top: 5px;">
+                                {{ $message }}
+                            </div>
+                        @enderror
                     </div>
 
                     <div class="input-group">
