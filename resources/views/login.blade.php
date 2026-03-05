@@ -31,8 +31,19 @@
             <div class="card-right">
                 <h2>Login</h2>
                 
+                @error('email')
+                    <div style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold; border: 1px solid #f5c6cb;">
+                        {{ $message }}
+                    </div>
+                @enderror
+
                 <form action="{{ route('login.post') }}" method="POST">
                     @csrf
+                    @if(session('success'))
+                        <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold;">
+                            {{ session('success') }}
+                        </div>
+                    @endif
                     
                     <div class="input-group">
                         <input type="text" name="email" id="usuario" required placeholder="Usuario o Correo">
