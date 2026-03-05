@@ -23,6 +23,11 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
     $credenciales = $request->validate([
         'email' => ['required', 'email'],
         'password' => ['required'],
+    ], [
+        // Mensajes personalizados para reemplazar los de inglés
+        'email.required' => 'El correo electrónico es obligatorio.',
+        'email.email'    => 'Por favor, ingresa un formato de correo válido (ejemplo@correo.com).',
+        'password.required' => 'La contraseña es obligatoria.'
     ]);
 
     // 2. Auth::attempt va a la base de datos y compara las contraseñas
