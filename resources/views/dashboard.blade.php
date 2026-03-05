@@ -8,6 +8,29 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
+    
+    @if(session('success'))
+    <div id="toast-exito" style="position: fixed; top: 20px; right: 20px; background-color: #ffffff; color: #155724; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 500; border-left: 5px solid #28a745; z-index: 9999; transition: opacity 0.5s ease; display: flex; align-items: center; gap: 10px; font-family: sans-serif;">
+        <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.2rem;"></i> 
+        {{ session('success') }}
+    </div>
+
+    <script>
+        setTimeout(function() {
+            let toast = document.getElementById('toast-exito');
+            if (toast) {
+                // Paso 1: Lo hacemos transparente suavemente
+                toast.style.opacity = '0';
+                
+                // Paso 2: Lo eliminamos del código después de la animación para que no estorbe los clics
+                setTimeout(function() { 
+                    toast.remove(); 
+                }, 500); 
+            }
+        }, 3500); // 3500 milisegundos = 3.5 segundos en pantalla
+    </script>
+@endif
+
     <div class="dashboard-container">
         <div class="dashboard-card">
             
