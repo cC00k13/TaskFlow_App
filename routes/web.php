@@ -4,12 +4,12 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
-
+use App\Http\Controllers\Auth\LoginController
 
 // 1. LA ENTRADA: Siempre empezamos en el Login
 Route::get('/', function () {
     return view('login');
-})->name('login');
+}->nombre('login');
 
 Route::get('/signup', [RegisterController::class, 'create'])->name('signup.form');
 
@@ -41,3 +41,8 @@ Route::post('/logout', function () {
     // Asegúrate de que diga 'logout' entre comillas y sin puntos extra
     return view('logout'); 
 })->name('logout');
+
+// Ruta para logout usando tu controlador personalizado
+Route::post('/logout', [LoginController::class, 'logout'])
+    ->name('logout')
+    ->middleware('auth'); // Asegurar que solo usuarios autenticados puedan hacer logout
