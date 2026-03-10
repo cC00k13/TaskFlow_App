@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\TaskController;
 
 // 1. LA ENTRADA: Siempre empezamos en el Login
 Route::get('/', function () {
@@ -46,3 +47,8 @@ Route::post('/logout', function () {
 Route::post('/logout', [LoginController::class, 'logout'])
     ->name('logout')
     ->middleware('auth'); // Asegurar que solo usuarios autenticados puedan hacer logout
+
+
+//Ruta para el controlador de validación de creación de tarea
+Route::get('/task/create', [TaskController::class, 'create']);
+Route::post('/task/create', [TaskController::class, 'store']);
