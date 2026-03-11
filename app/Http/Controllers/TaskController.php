@@ -21,6 +21,8 @@ class TaskController extends Controller
             'date' => 'required', Rule::date()->todayOrAfter(),
         ],);
 
+        
+
         return redirect('/dashboard');
     }
 }
