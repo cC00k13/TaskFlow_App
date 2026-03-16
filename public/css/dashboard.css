@@ -9,7 +9,7 @@
 }
 
 body {
-    background: linear-gradient(135deg, #ff7555, #ff2a5f); /* Gradiente TaskFlow */
+    background: linear-gradient(135deg, #ff7555, #ff2a5f);
     min-height: 100vh;
     display: flex;
     justify-content: center;
@@ -50,7 +50,7 @@ body {
 .date { font-size: 0.9rem; color: #7a7a7a; margin-top: 5px; }
 
 .user-info { display: flex; align-items: center; gap: 15px; font-size: 0.95rem; color: #333; }
-.logout-icon { color: #ff2a5f; font-size: 1.4rem; transition: transform 0.2s; }
+.logout-icon { color: #ff2a5f; font-size: 1.4rem; transition: transform 0.2s; background: none; border: none; cursor: pointer; }
 .logout-icon:hover { transform: scale(1.1); }
 
 /* --- Controles (Buscar y Ordenar) --- */
@@ -124,7 +124,7 @@ body {
 
 .task-item {
     display: flex;
-    align-items: flex-start; /* Alineación superior para que se vea bien con los nuevos datos */
+    align-items: flex-start;
     gap: 15px;
     background: #f9f9f9;
     padding: 20px;
@@ -158,7 +158,7 @@ body {
 }
 
 /* --- Badges (Etiquetas de estado y prioridad) --- */
-.tags { display: flex; gap: 8px; margin-bottom: 8px;}
+.tags { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .tag {
     font-size: 0.65rem;
     padding: 4px 10px;
@@ -173,7 +173,7 @@ body {
 .status-pending { background: #f5f5f5; color: #616161; }
 .status-done { background: #eee; color: #aaa; }
 
-/* --- NUEVO: Metadatos de la Tarea (Fechas y Adjuntos) --- */
+/* --- Metadatos de la Tarea (Fechas y Adjuntos) --- */
 .task-meta {
     font-size: 0.75rem;
     color: #888;
@@ -192,7 +192,7 @@ body {
 /* --- Tarea Completada --- */
 .task-item.completed { border-left-color: #ddd; background: #f0f0f0; }
 .task-item.completed .title { text-decoration: line-through; color: #999; }
-.task-item.completed .task-meta { opacity: 0.6; } /* Hace que las fechas se vean opacas si ya se completó */
+.task-item.completed .task-meta { opacity: 0.6; }
 
 /* --- Acciones (Editar / Eliminar) --- */
 .actions button {
@@ -260,15 +260,19 @@ body {
     border-bottom: 2px solid #ff2a5f;
 }
 
-/* --- NUEVO: Estilo para inputs de fechas y lectura --- */
-.input-group input[readonly] {
+/* Estilo para inputs de solo lectura */
+.readonly-input {
     color: #888;
     background-color: #fafafa;
     border-bottom: 1px dashed #ddd;
     cursor: not-allowed;
 }
 
-/* --- NUEVO: Estilo para el botón de Subir Archivos --- */
+.input-group input::placeholder, .input-group textarea::placeholder {
+    color: #aaa; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px;
+}
+
+/* Estilo Personalizado para Subir Archivos */
 input[type="file"]::file-selector-button {
     background-color: #ff2a5f;
     color: white;
@@ -285,10 +289,6 @@ input[type="file"]::file-selector-button {
 input[type="file"]::file-selector-button:hover {
     background-color: #e01f4f;
     transform: translateY(-1px);
-}
-
-.input-group input::placeholder, .input-group textarea::placeholder {
-    color: #aaa; font-weight: 600; font-size: 0.8rem; letter-spacing: 1px;
 }
 
 .modal-row { display: flex; gap: 20px; }
@@ -314,6 +314,50 @@ input[type="file"]::file-selector-button:hover {
 }
 
 .btn-submit:hover { background-color: #e01f4f; transform: translateY(-2px); }
+
+/* =========================================
+   Estilos para Etiquetas e Historias
+   ========================================= */
+
+/* --- Botones Secundarios (Etiquetas) --- */
+.btn-secondary { background: #555; color: white; border: none; padding: 8px 15px; border-radius: 8px; cursor: pointer; transition: 0.3s; font-size: 0.9rem; }
+.btn-secondary:hover { background: #333; }
+.btn-full { width: 100%; margin-top: 15px; padding: 10px; border-radius: 8px; }
+
+/* --- Utilidades para el gestor de Etiquetas --- */
+.color-picker { width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer; }
+.etiqueta-list { list-style: none; margin-top: 15px; max-height: 200px; overflow-y: auto; }
+.etiqueta-item { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px; border-left: 4px solid; }
+.select-multiple { height: auto !important; min-height: 80px; padding: 5px !important; border: 1px solid #ddd; border-radius: 8px; }
+.select-multiple option { padding: 5px; margin-bottom: 2px; border-radius: 4px; }
+.btn-delete-tag { background: none; border: none; color: #ff2a5f; cursor: pointer; transition: 0.2s; }
+.btn-delete-tag:hover { transform: scale(1.1); }
+.empty-tag-msg { font-size: 0.85rem; color: #888; text-align: center; margin-top: 10px; }
+
+/* --- Estado Vacío (Sin tareas) --- */
+.empty-state { justify-content: center; color: #888; padding: 40px 20px; text-align: center; border-left: 5px solid #ddd; background: #fafafa; }
+.empty-state-content { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.empty-state-content i { font-size: 2.5rem; color: #dcdcdc; }
+.empty-state-content span { font-weight: 500; }
+
+/* --- Notificación de Éxito --- */
+.toast-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #ffffff;
+    color: #155724;
+    padding: 15px 25px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    font-weight: 500;
+    border-left: 5px solid #28a745;
+    z-index: 9999;
+    transition: opacity 0.5s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
 /* --- Responsive básico --- */
 @media (max-width: 700px) {

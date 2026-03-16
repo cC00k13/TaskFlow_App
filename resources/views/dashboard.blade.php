@@ -9,24 +9,12 @@
 </head>
 <body>
     
-    {{-- Notificación de Éxito --}}
+    {{-- Notificación de Éxito o Error --}}
     @if(session('success'))
-    <div id="toast-exito" style="position: fixed; top: 20px; right: 20px; background-color: #ffffff; color: #155724; padding: 15px 25px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); font-weight: 500; border-left: 5px solid #28a745; z-index: 9999; transition: opacity 0.5s ease; display: flex; align-items: center; gap: 10px; font-family: sans-serif;">
-        <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.2rem;"></i> 
-        {{ session('success') }}
+    <div id="toast-exito" class="toast-notification">
+        <i class="fas fa-check-circle" style="color: #28a745; font-size: 1.2rem;"></i> {{ session('success') }}
     </div>
-
-    <script>
-        setTimeout(function() {
-            let toast = document.getElementById('toast-exito');
-            if (toast) {
-                toast.style.opacity = '0';
-                setTimeout(function() { 
-                    toast.remove(); 
-                }, 500); 
-            }
-        }, 3500);
-    </script>
+    <script>setTimeout(() => { let t = document.getElementById('toast-exito'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 3500);</script>
     @endif
 
     <div class="dashboard-container">
@@ -40,11 +28,12 @@
                 <div class="user-info">
                     <span>Hola, <strong>{{ auth()->user()->name ?? '' }}</strong></span>
                     
+                    {{-- Botón para abrir el nuevo gestor de etiquetas --}}
+                    <button class="btn-secondary" onclick="abrirModalEtiquetas()"><i class="fas fa-tags"></i> Mis Etiquetas</button>
+                    
                     <form action="{{ route('logout') }}" method="POST" style="display: inline;">
                         @csrf
-                        <button type="submit" class="logout-icon" title="Cerrar sesión" style="background: none; border: none; cursor: pointer;">
-                            <i class="fas fa-sign-out-alt"></i>
-                        </button>
+                        <button type="submit" class="logout-icon" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
                     </form>
                 </div>
             </header>
@@ -52,14 +41,13 @@
             <section class="controls">
                 <div class="search-bar">
                     <input type="text" placeholder="Nueva tarea rápida...">
-                    <button class="btn-add" onclick="abrirModal()"><i class="fas fa-plus"></i></button>
+                    <button class="btn-add" onclick="abrirModalNuevaTarea()"><i class="fas fa-plus"></i></button>
                 </div>
-                
                 <div class="filter-bar">
                     <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
                     <select class="select-ordenar">
+                        <option selected>Más próximas a vencer</option>
                         <option>Más recientes</option>
-                        <option>Prioridad Alta</option>
                         <option>Pendientes primero</option>
                     </select>
                 </div>
@@ -70,16 +58,33 @@
                 <ul class="task-list">
                     @forelse($tareas ?? [] as $tarea)
                         <li class="task-item {{ $tarea->estado == 'completada' ? 'completed' : '' }}">
-                            <input type="checkbox" class="task-check" {{ $tarea->estado == 'completada' ? 'checked' : '' }}>
-                            <div class="content" onclick="abrirModal()">
+                            
+                            {{-- Completar Tarea Rápido --}}
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" style="margin-top: 3px;">
+                                @csrf @method('PATCH') 
+                                <input type="hidden" name="estado" value="{{ $tarea->estado == 'completada' ? 'pendiente' : 'completada' }}">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" {{ $tarea->estado == 'completada' ? 'checked' : '' }}>
+                            </form>
+
+                            <div class="content" onclick="abrirModalEditar(this)" 
+                                 data-id="{{ $tarea->id ?? '' }}" data-titulo="{{ $tarea->titulo ?? '' }}" 
+                                 data-descripcion="{{ $tarea->descripcion ?? '' }}" data-fecha_limite="{{ $tarea->fecha_limite ?? '' }}" 
+                                 data-prioridad="{{ $tarea->prioridad ?? 'media' }}" data-estado="{{ $tarea->estado ?? 'pendiente' }}"
+                                 data-etiquetas="{{ json_encode(isset($tarea->etiquetas) ? $tarea->etiquetas->pluck('id') : []) }}">
                                 <span class="title">{{ $tarea->titulo }}</span>
+                                
                                 <div class="tags">
-                                    <span class="tag priority-{{ strtolower($tarea->prioridad) }}">{{ strtoupper($tarea->prioridad) }}</span>
-                                    <span class="tag status-{{ strtolower($tarea->estado) }}">{{ strtoupper($tarea->estado) }}</span>
+                                    <span class="tag priority-{{ strtolower($tarea->prioridad ?? 'media') }}">{{ strtoupper($tarea->prioridad ?? 'MEDIA') }}</span>
+                                    <span class="tag status-{{ strtolower($tarea->estado ?? 'pendiente') }}">{{ strtoupper($tarea->estado ?? 'PENDIENTE') }}</span>
+                                    
+                                    {{-- Etiquetas Visuales --}}
+                                    @foreach($tarea->etiquetas ?? [] as $etiqueta)
+                                        <span class="tag" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.3);">{{ $etiqueta->nombre }}</span>
+                                    @endforeach
                                 </div>
-                                {{-- Metadatos: Fechas y Adjuntos visibles en la lista --}}
-                                <div class="task-meta" style="font-size: 0.75rem; color: #888; margin-top: 8px; display: flex; gap: 15px;">
-                                    <span><i class="far fa-calendar-alt"></i> Creada: {{ $tarea->fecha_asignacion ?? date('Y-m-d') }}</span>
+
+                                <div class="task-meta">
+                                    <span><i class="far fa-calendar-alt"></i> Creada: {{ $tarea->fecha_asignacion ?? 'Hoy' }}</span>
                                     @if(!empty($tarea->fecha_limite))
                                         <span style="color: #d32f2f;"><i class="far fa-clock"></i> Límite: {{ $tarea->fecha_limite }}</span>
                                     @endif
@@ -88,14 +93,23 @@
                                     @endif
                                 </div>
                             </div>
-                            <div class="actions">
-                                <button class="edit" onclick="abrirModal()" title="Editar"><i class="fas fa-pen"></i></button>
-                                <button class="delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+                            
+                            <div class="actions" style="display: flex; align-items: center;">
+                                <button class="edit" onclick="abrirModalEditar(this.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
+                                
+                                {{-- Eliminar con Alerta --}}
+                                <form action="/tareas/{{ $tarea->id ?? 0 }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar esta tarea permanentemente?');" style="margin: 0;">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </form>
                             </div>
                         </li>
                     @empty
-                        <li class="task-item" style="justify-content: center; color: #888;">
-                            <span>No hay tareas disponibles. ¡Empieza creando una nueva!</span>
+                        <li class="task-item empty-state">
+                            <div class="empty-state-content">
+                                <i class="fas fa-clipboard-list"></i>
+                                <span>Aún no tienes tareas pendientes. ¡Estás al día!</span>
+                            </div>
                         </li>
                     @endforelse
                 </ul>
@@ -103,39 +117,50 @@
         </div>
     </div>
 
+    {{-- MODAL PRINCIPAL: TAREAS (Crear y Editar) --}}
     <div class="modal-overlay" id="task-modal">
         <div class="modal-card">
             <div class="modal-header">
-                <h2>Detalles de la Tarea</h2>
-                <button class="close-modal" onclick="cerrarModal()"><i class="fas fa-times"></i></button>
+                <h2 id="modal-titulo-principal">Detalles de la Tarea</h2>
+                <button class="close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            {{-- El enctype es obligatorio para adjuntar archivos --}}
-            <form action="/tareas" method="POST" enctype="multipart/form-data">
+            <form id="form-tarea" action="/tareas" method="POST" enctype="multipart/form-data">
                 @csrf
-                <div class="input-group">
-                    <input type="text" name="titulo" required placeholder="TÍTULO DE LA TAREA">
-                </div>
-                <div class="input-group">
-                    <textarea name="descripcion" rows="3" placeholder="Descripción de la tarea..."></textarea>
-                </div>
+                <input type="hidden" name="_method" id="metodo-formulario" value="POST">
                 
-                {{-- Fila de Fechas --}}
+                <div class="input-group">
+                    <input type="text" name="titulo" id="input-titulo" required placeholder="TÍTULO DE LA TAREA">
+                </div>
+                <div class="input-group">
+                    <textarea name="descripcion" id="input-descripcion" rows="3" placeholder="Descripción de la tarea..."></textarea>
+                </div>
+
+                {{-- Selector Múltiple de Etiquetas --}}
+                <div class="input-group">
+                    <label class="select-label"><i class="fas fa-tags"></i> ETIQUETAS (Deja presionado Ctrl para seleccionar varias)</label>
+                    <select name="etiquetas[]" id="input-etiquetas" multiple class="custom-select select-multiple">
+                        @foreach($etiquetas_usuario ?? [] as $etiqueta)
+                            <option value="{{ $etiqueta->id }}">{{ $etiqueta->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
                 <div class="modal-row">
                     <div class="input-group half">
                         <label class="select-label">FECHA DE ASIGNACIÓN</label>
-                        <input type="date" name="fecha_asignacion" value="{{ date('Y-m-d') }}" readonly style="color: #888; cursor: not-allowed; background-color: #fafafa; border-bottom: 1px dashed #ddd;" class="custom-select">
+                        <input type="date" name="fecha_asignacion" value="{{ date('Y-m-d') }}" readonly class="custom-select readonly-input">
                     </div>
                     <div class="input-group half">
                         <label class="select-label">FECHA LÍMITE</label>
-                        <input type="date" name="fecha_limite" class="custom-select">
+                        <input type="date" name="fecha_limite" id="input-fecha" class="custom-select">
                     </div>
                 </div>
 
                 <div class="modal-row">
                     <div class="input-group half">
                         <label class="select-label">PRIORIDAD</label>
-                        <select name="prioridad" class="custom-select">
+                        <select name="prioridad" id="input-prioridad" class="custom-select">
                             <option value="baja">Baja</option>
                             <option value="media">Media</option>
                             <option value="alta" selected>Alta</option>
@@ -143,7 +168,7 @@
                     </div>
                     <div class="input-group half">
                         <label class="select-label">ESTADO</label>
-                        <select name="estado" class="custom-select">
+                        <select name="estado" id="input-estado" class="custom-select">
                             <option value="pendiente">Pendiente</option>
                             <option value="progreso" selected>En Progreso</option>
                             <option value="completada">Completada</option>
@@ -151,24 +176,96 @@
                     </div>
                 </div>
 
-                {{-- Campo para Documentos --}}
                 <div class="input-group" style="margin-top: 10px;">
                     <label class="select-label"><i class="fas fa-paperclip"></i> ADJUNTAR DOCUMENTO</label>
                     <input type="file" name="documento" class="custom-select" accept=".pdf,.doc,.docx,.jpg,.png" style="padding-top: 15px;">
                 </div>
 
                 <div class="form-actions" style="margin-top: 25px;">
-                    <button type="button" class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
-                    <button type="submit" class="btn-submit">Guardar Tarea</button>
+                    <button type="button" class="btn-cancel" onclick="cerrarModal('task-modal')">Cancelar</button>
+                    <button type="submit" class="btn-submit" id="btn-submit-tarea">Guardar Tarea</button>
                 </div>
             </form>
         </div>
     </div>
 
+    {{-- MODAL SECUNDARIO: GESTIONAR ETIQUETAS --}}
+    <div class="modal-overlay" id="label-modal">
+        <div class="modal-card" style="max-width: 450px;">
+            <div class="modal-header">
+                <h2>Mis Etiquetas</h2>
+                <button class="close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <form action="/etiquetas" method="POST" style="background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                @csrf
+                <div class="modal-row" style="align-items: flex-end;">
+                    <div class="input-group half" style="margin-bottom: 0;">
+                        <label class="select-label">NOMBRE</label>
+                        <input type="text" name="nombre" required placeholder="Ej. Examen" class="custom-select">
+                    </div>
+                    <div class="input-group half" style="margin-bottom: 0;">
+                        <label class="select-label">COLOR</label>
+                        <input type="color" name="color" value="#ff2a5f" class="color-picker">
+                    </div>
+                </div>
+                <button type="submit" class="btn-submit btn-full">Crear Etiqueta</button>
+            </form>
+
+            <label class="select-label">ETIQUETAS ACTUALES</label>
+            <ul class="etiqueta-list">
+                @forelse($etiquetas_usuario ?? [] as $etiqueta)
+                    <li class="etiqueta-item" style="border-left-color: {{ $etiqueta->color }};">
+                        <strong>{{ $etiqueta->nombre }}</strong>
+                        <form action="/etiquetas/{{ $etiqueta->id }}" method="POST" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');" style="margin: 0;">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn-delete-tag"><i class="fas fa-trash"></i></button>
+                        </form>
+                    </li>
+                @empty
+                    <p class="empty-tag-msg">Aún no has creado categorías.</p>
+                @endforelse
+            </ul>
+        </div>
+    </div>
+
     <script>
-        const modal = document.getElementById('task-modal');
-        function abrirModal() { modal.style.display = 'flex'; }
-        function cerrarModal() { modal.style.display = 'none'; }
+        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+        function abrirModalEtiquetas() { document.getElementById('label-modal').style.display = 'flex'; }
+        
+        function abrirModalNuevaTarea() {
+            document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
+            document.getElementById('form-tarea').action = '/tareas';
+            document.getElementById('metodo-formulario').value = 'POST';
+            document.getElementById('form-tarea').reset();
+            document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
+            
+            let selectEtiquetas = document.getElementById('input-etiquetas');
+            for(let i=0; i < selectEtiquetas.options.length; i++){ selectEtiquetas.options[i].selected = false; }
+            document.getElementById('task-modal').style.display = 'flex';
+        }
+
+        function abrirModalEditar(elemento) {
+            document.getElementById('modal-titulo-principal').innerText = 'Editar Tarea';
+            let id = elemento.getAttribute('data-id');
+            document.getElementById('form-tarea').action = '/tareas/' + id;
+            document.getElementById('metodo-formulario').value = 'PUT';
+            
+            document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
+            document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
+            document.getElementById('input-fecha').value = elemento.getAttribute('data-fecha_limite');
+            document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
+            document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
+            
+            let etiquetasAsignadas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
+            let selectEtiquetas = document.getElementById('input-etiquetas');
+            for(let i=0; i < selectEtiquetas.options.length; i++){
+                selectEtiquetas.options[i].selected = etiquetasAsignadas.includes(parseInt(selectEtiquetas.options[i].value));
+            }
+
+            document.getElementById('btn-submit-tarea').innerText = 'Actualizar Tarea';
+            document.getElementById('task-modal').style.display = 'flex';
+        }
     </script>
 </body>
 </html>
