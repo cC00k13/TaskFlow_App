@@ -169,8 +169,8 @@
                     <div class="input-group half">
                         <label class="select-label">ESTADO</label>
                         <select name="estado" id="input-estado" class="custom-select">
-                            <option value="pendiente">Pendiente</option>
-                            <option value="progreso" selected>En Progreso</option>
+                            <option value="pendiente" selected>Pendiente</option>
+                            <option value="progreso" >En Progreso</option>
                             <option value="completada">Completada</option>
                         </select>
                     </div>
