@@ -8,41 +8,42 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card register-card">
+    <div class="auth-container">
+        <div class="auth-card">
             
-            <div class="card-left">
-                <h1>Join<br>TaskFlow.</h1>
-                <p>Crea una cuenta para empezar a gestionar tus tareas y mantener todos los proyectos de tu equipo organizados de manera eficiente.</p>
+            <div class="card-left brand-bg">
+                <div class="brand-content">
+                    <h1>Comienza<br>con TaskFlow.</h1>
+                    <p>Crea una cuenta para empezar a gestionar tus tareas y mantener todos los proyectos de tu equipo organizados de manera eficiente.</p>
+                </div>
             </div>
 
             <div class="card-right">
-                <h2>Register</h2>
+                <h2>Registro</h2>
                 <p class="subtitle">¿Ya tienes cuenta? <a href="{{ route('login') }}">Inicia sesión aquí</a>.</p>
                 
-                <form action="{{ route('registro.post') }}" method="POST">
+                <form action="{{ route('registro.post') }}" method="POST" class="auth-form">
                     @csrf
                     
                     <div class="input-group">
-                        <input type="text" id="nombre" name="name" required placeholder="NAME">
+                        <input type="text" id="nombre" name="name" required placeholder="Nombre completo">
                     </div>
                     
                     <div class="input-group">
-                        <input type="email" id="email" name="email" required placeholder="EMAIL ID">
-
+                        <input type="email" id="email" name="email" required placeholder="Correo electrónico">
                         @error('email')
-                            <div style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-top: 5px; margin-bottom: 10px; text-align: center; font-weight: bold; border: 1px solid #f5c6cb; font-size: 14px;">
-                                 {{ $message }}
+                            <div class="error-msg">
+                                 <i class="fas fa-exclamation-circle"></i> {{ $message }}
                             </div>
                         @enderror
                     </div>
 
                     <div class="input-group">
-                        <input type="tel" id="telefono" name="phone" placeholder="PHONE NO">
+                        <input type="tel" id="telefono" name="phone" placeholder="Teléfono (Opcional)">
                     </div>
                     
                     <div class="input-group">
-                        <input type="password" id="password" name="password" required placeholder="PASSWORD">
+                        <input type="password" id="password" name="password" required placeholder="Contraseña">
                     </div>
 
                     <div class="checkbox-group">
@@ -50,24 +51,23 @@
                         <label for="terms">Acepto los términos, condiciones y política de privacidad</label>
                     </div>
                     
-                    <div class="form-actions right-align">
-                        <button type="submit" class="btn-submit">Registrarse</button>
-                    </div>
+                    <button type="submit" class="btn-primary w-100">Registrarse</button>
                 </form>
 
-                <div class="social-login-bottom">
-                    <p>Registro con redes sociales</p>
-                    <div class="social-buttons small-buttons">
-                        <button type="button" class="btn-facebook">
-                            <i class="fab fa-facebook-f"></i> Facebook
-                        </button>
-                        <button type="button" class="btn-twitter">
-                            <i class="fab fa-twitter"></i> Twitter
-                        </button>
-                        <button type="button" class="btn-google">
-                            <i class="fab fa-google"></i> Google+
-                        </button>
-                    </div>
+                <div class="divider">
+                    <span>Registro con redes sociales</span>
+                </div>
+
+                <div class="social-buttons">
+                    <button type="button" class="btn-social google">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button type="button" class="btn-social facebook">
+                        <i class="fab fa-facebook-f"></i> Facebook
+                    </button>
+                    <button type="button" class="btn-social twitter">
+                        <i class="fab fa-twitter"></i> Twitter
+                    </button>
                 </div>
             </div>
 

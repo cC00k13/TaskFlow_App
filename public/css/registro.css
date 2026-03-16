@@ -1,233 +1,128 @@
 /* =========================================
-   Reset y Configuración Base
+   Variables de Diseño (SaaS Corporativo)
    ========================================= */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+:root {
+    --primary: #2563eb;       
+    --primary-hover: #1d4ed8;
+    --bg-main: #f1f5f9;       
+    --surface: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 12px;
+    --shadow-md: 0 10px 25px rgba(0,0,0,0.1);
 }
 
-/* Fondo principal con el gradiente cálido de tu imagen de inspiración */
-body {
-    background: linear-gradient(135deg, #ff7555, #ff2a5f);
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', 'Segoe UI', Tahoma, sans-serif; }
 
-.login-container {
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-}
+body { background: var(--bg-main); min-height: 100vh; display: flex; justify-content: center; align-items: center; color: var(--text-main); padding: 20px; }
+
+.auth-container { width: 100%; display: flex; justify-content: center; align-items: center; }
 
 /* =========================================
-   Estructura de la Tarjeta de Registro
+   Tarjeta Principal
    ========================================= */
-.login-card {
+.auth-card {
     display: flex;
     width: 100%;
-    max-width: 900px;
+    max-width: 950px;
     min-height: 600px;
-    background-color: #fff;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-    border-radius: 8px; /* Bordes ligeramente redondeados */
+    background-color: var(--surface);
+    box-shadow: var(--shadow-md);
+    border-radius: var(--radius);
     overflow: hidden;
+    border: 1px solid var(--border);
 }
 
-/* --- Panel Izquierdo (Imagen) --- */
+/* --- Panel Izquierdo (Imagen Corporativa) --- */
 .card-left {
     flex: 1;
-    /* Imagen de playa/costa similar a la de tu ejemplo */
-    background: linear-gradient(to right, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1)), 
-                url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80') center/cover no-repeat;
-    color: white;
-    padding: 60px 50px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    padding: 60px 50px;
+    color: white;
+    position: relative;
 }
 
-.card-left h1 {
-    font-size: 3.5rem;
-    line-height: 1.1;
-    margin-bottom: 20px;
-    font-weight: 700;
+.brand-bg {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(30, 58, 138, 0.9)), 
+                url('https://images.unsplash.com/photo-1557683316-973673baf926?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80') center/cover no-repeat;
 }
 
-.card-left p {
-    font-size: 0.9rem;
-    line-height: 1.6;
-    color: #f0f0f0;
-}
+.brand-content { position: relative; z-index: 2; }
+.card-left h1 { font-size: 3rem; line-height: 1.1; margin-bottom: 20px; font-weight: 800; letter-spacing: -1px; }
+.card-left p { font-size: 1rem; line-height: 1.6; color: rgba(255, 255, 255, 0.85); }
 
 /* --- Panel Derecho (Formulario) --- */
 .card-right {
     flex: 1;
-    padding: 50px 60px;
+    padding: 50px 50px;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    background-color: #ffffff;
+    background-color: var(--surface);
 }
 
-.card-right h2 {
-    font-size: 2rem;
-    margin-bottom: 5px;
-    color: #222;
-}
-
-.subtitle {
-    font-size: 0.85rem;
-    color: #7a7a7a;
-    margin-bottom: 35px;
-}
-
-.subtitle a {
-    color: #4a90e2;
-    text-decoration: none;
-    font-weight: 600;
-}
-
-.subtitle a:hover {
-    text-decoration: underline;
-}
+.card-right h2 { font-size: 1.8rem; margin-bottom: 8px; color: var(--text-main); font-weight: 700; }
+.subtitle { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 30px; }
+.subtitle a { color: var(--primary); text-decoration: none; font-weight: 600; transition: color 0.2s; }
+.subtitle a:hover { color: var(--primary-hover); text-decoration: underline; }
 
 /* =========================================
    Campos del Formulario
    ========================================= */
-.input-group {
-    margin-bottom: 25px;
-}
+.auth-form { margin-bottom: 20px; }
+.input-group { margin-bottom: 20px; }
 
 .input-group input {
     width: 100%;
-    padding: 8px 0;
-    border: none;
-    border-bottom: 1px solid #ddd; 
+    padding: 12px 15px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
     outline: none;
-    font-size: 0.85rem;
-    color: #333;
-    background: transparent;
-    transition: border-color 0.3s ease;
+    font-size: 0.95rem;
+    color: var(--text-main);
+    background: var(--bg-main);
+    transition: 0.2s;
 }
 
-.input-group input:focus {
-    border-bottom: 2px solid #ff2a5f; /* Resalta en el color del tema al escribir */
-}
+.input-group input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+.input-group input::placeholder { color: #94a3b8; font-weight: 500; }
 
-.input-group input::placeholder {
-    color: #aaa;
-    font-weight: 600;
-    font-size: 0.75rem;
-    letter-spacing: 1px;
-}
+/* Alerta de Error de Laravel */
+.error-msg { background-color: #fef2f2; color: #dc2626; padding: 10px 12px; border-radius: 6px; margin-top: 8px; font-size: 0.85rem; font-weight: 500; border: 1px solid #fca5a5; display: flex; align-items: center; gap: 8px; }
 
-/* Checkbox de términos */
-.checkbox-group {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 30px;
-    font-size: 0.75rem;
-    color: #7a7a7a;
-}
+/* Checkbox */
+.checkbox-group { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 25px; font-size: 0.8rem; color: var(--text-muted); }
+.checkbox-group input[type="checkbox"] { accent-color: var(--primary); width: 16px; height: 16px; cursor: pointer; margin-top: 2px; }
 
-.checkbox-group input[type="checkbox"] {
-    accent-color: #ff2a5f;
-    width: 14px;
-    height: 14px;
-    cursor: pointer;
-}
-
-/* Botón de Enviar (Rojo/Rosa como en el diseño) */
-.form-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 30px;
-}
-
-.btn-submit {
-    background-color: #ff2a5f; 
-    color: white;
-    border: none;
-    padding: 12px 40px;
-    border-radius: 25px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 10px rgba(255, 42, 95, 0.3);
-    transition: transform 0.2s ease, background-color 0.3s ease;
-}
-
-.btn-submit:hover {
-    background-color: #e01f4f;
-    transform: translateY(-2px);
-}
+/* Botón Principal */
+.btn-primary { background-color: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: 0.2s; margin-top: 10px; }
+.btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2); }
+.w-100 { width: 100%; }
 
 /* =========================================
-   Redes Sociales (Parte inferior)
+   Redes Sociales
    ========================================= */
-.social-login-bottom {
-    margin-top: 10px;
-}
+.divider { display: flex; align-items: center; text-align: center; margin: 20px 0; color: var(--text-muted); font-size: 0.85rem; }
+.divider::before, .divider::after { content: ''; flex: 1; border-bottom: 1px solid var(--border); }
+.divider span { padding: 0 15px; }
 
-.social-login-bottom p {
-    font-size: 0.75rem;
-    color: #aaa;
-    margin-bottom: 15px;
-}
-
-.social-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.social-buttons button {
-    padding: 8px 10px;
-    border: none;
-    border-radius: 20px;
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    font-size: 0.75rem;
-    flex: 1;
-    transition: opacity 0.3s;
-}
-
-.social-buttons button:hover {
-    opacity: 0.85;
-}
-
-.btn-facebook { background-color: #3b5998; }
-.btn-twitter { background-color: #1da1f2; }
-.btn-google { background-color: #db4437; }
+.social-buttons { display: flex; gap: 10px; }
+.btn-social { flex: 1; padding: 10px; border: 1px solid var(--border); background: var(--surface); border-radius: 8px; color: var(--text-main); font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 0.85rem; transition: 0.2s; }
+.btn-social:hover { background: var(--bg-main); border-color: #cbd5e1; }
+.btn-social.google i { color: #db4437; }
+.btn-social.facebook i { color: #1877f2; }
+.btn-social.twitter i { color: #1da1f2; }
 
 /* =========================================
-   Responsive (Pantallas pequeñas)
+   Responsive
    ========================================= */
-@media (max-width: 800px) {
-    .login-card {
-        flex-direction: column;
-        height: auto;
-    }
-    .card-left {
-        padding: 40px;
-        text-align: center;
-    }
-    .card-right {
-        padding: 40px;
-    }
-    .social-buttons {
-        flex-direction: column;
-    }
+@media (max-width: 850px) {
+    .auth-card { flex-direction: column; min-height: auto; }
+    .card-left { padding: 40px; text-align: center; min-height: 250px; }
+    .card-left h1 { font-size: 2.2rem; }
+    .card-right { padding: 40px 30px; }
+    .social-buttons { flex-direction: column; }
 }

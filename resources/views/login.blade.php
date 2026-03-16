@@ -3,64 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TaskFlow - Login</title>
-    <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+    <title>TaskFlow - Iniciar Sesión</title>
+    <link rel="stylesheet" href="{{ asset('css/registro.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-card">
+    <div class="auth-container">
+        <div class="auth-card">
             
-            <div class="card-left">
-                <h1>Welcome to<br>TaskFlow.</h1>
-                <p>Inicia sesión para empezar a gestionar tus tareas y mantener todos tus proyectos organizados de manera eficiente.</p>
-                
-                <div class="social-login">
-                    <p>Login con redes sociales</p>
-                    <div class="social-buttons">
-                        <button type="button" class="btn-facebook">
-                            <i class="fab fa-facebook-f"></i> Facebook
-                        </button>
-                        <button type="button" class="btn-twitter">
-                            <i class="fab fa-twitter"></i> Twitter
-                        </button>
-                    </div>
+            <div class="card-left brand-bg login-bg">
+                <div class="brand-content">
+                    <h1>Bienvenido<br>de nuevo.</h1>
+                    <p>Accede a tu panel de control y retoma el progreso de tus tareas y proyectos justo donde las dejaste.</p>
                 </div>
             </div>
 
             <div class="card-right">
-                <h2>Login</h2>
+                <h2>Iniciar Sesión</h2>
+                <p class="subtitle">¿Nuevo en TaskFlow? <a href="{{ route('registro') }}">Crea una cuenta gratis</a>.</p>
                 
+                {{-- Alertas de Laravel (Errores y Éxitos) --}}
                 @error('email')
-                    <div style="background-color: #f8d7da; color: #721c24; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold; border: 1px solid #f5c6cb;">
-                        {{ $message }}
+                    <div class="error-msg global-error" style="margin-bottom: 15px;">
+                        <i class="fas fa-exclamation-circle"></i> {{ $message }}
                     </div>
                 @enderror
 
-                <form action="{{ route('login.post') }}" method="POST">
+                @if(session('success'))
+                    <div class="error-msg global-error" style="background-color: #ecfdf5; color: #059669; border-color: #a7f3d0; margin-bottom: 15px;">
+                        <i class="fas fa-check-circle"></i> {{ session('success') }}
+                    </div>
+                @endif
+
+                <form action="{{ route('login.post') }}" method="POST" class="auth-form">
                     @csrf
-                    @if(session('success'))
-                        <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-weight: bold;">
-                            {{ session('success') }}
+                    
+                    <div class="input-group">
+                        <input type="email" name="email" id="usuario" required placeholder="Correo electrónico">
+                    </div>
+                    
+                    <div class="input-group">
+                        <input type="password" name="password" id="password" required placeholder="Contraseña">
+                    </div>
+
+                    <div class="form-options">
+                        <div class="checkbox-group no-margin">
+                            <input type="checkbox" id="remember" name="remember">
+                            <label for="remember">Recordarme</label>
                         </div>
-                    @endif
-                    
-                    <div class="input-group">
-                        <input type="text" name="email" id="usuario" required placeholder="Usuario o Correo">
+                        <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
                     </div>
                     
-                    <div class="input-group">
-                        <input type="password" name="password" id="password" required placeholder="Password">
-                    </div>
-                    
-                    <div class="form-actions">
-                        <button type="submit" class="btn-submit">Enviar</button>
-                    </div>
+                    <button type="submit" class="btn-primary w-100" style="margin-top: 20px;">Acceder al Dashboard</button>
                 </form>
 
-                <div class="register-link">
-                    <p>¿No tienes cuenta? <a href="{{ route('registro') }}">Regístrate</a></p>
+                <div class="divider">
+                    <span>o accede con redes sociales</span>
                 </div>
+
+                <div class="social-buttons">
+                    <button type="button" class="btn-social google">
+                        <i class="fab fa-google"></i> Google
+                    </button>
+                    <button type="button" class="btn-social facebook">
+                        <i class="fab fa-facebook-f"></i> Facebook
+                    </button>
+                    <button type="button" class="btn-social twitter">
+                        <i class="fab fa-twitter"></i> Twitter
+                    </button>
+                </div>
+                
             </div>
 
         </div>

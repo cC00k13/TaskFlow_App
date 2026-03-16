@@ -1,20 +1,37 @@
 /* =========================================
-   Reset y Fondo Base (Mismo estilo de TaskFlow)
+   Variables de Diseño (SaaS Corporativo)
+   ========================================= */
+:root {
+    --primary: #2563eb;       /* Azul corporativo moderno */
+    --primary-hover: #1d4ed8;
+    --success: #10b981;       /* Verde de éxito */
+    --bg-main: #f1f5f9;       /* Gris pizarra claro */
+    --surface: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 10px;
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+}
+
+/* =========================================
+   Reset y Fondo Base
    ========================================= */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 body {
-    background: linear-gradient(135deg, #ff7555, #ff2a5f);
+    background: var(--bg-main);
     min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
     padding: 20px;
+    color: var(--text-main);
 }
 
 .logout-container {
@@ -28,12 +45,13 @@ body {
    Tarjeta de Confirmación de Logout
    ========================================= */
 .logout-card {
-    background-color: #fff;
+    background-color: var(--surface);
     width: 100%;
-    max-width: 450px; /* Tarjeta más angosta para un solo mensaje */
+    max-width: 450px;
     padding: 50px 40px;
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border);
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -45,39 +63,39 @@ body {
    Icono Animado
    ========================================= */
 .logout-icon i {
-    font-size: 5rem;
-    color: #ff2a5f; /* Color de acento de TaskFlow */
-    margin-bottom: 10px;
+    font-size: 4.5rem;
+    color: var(--success);
+    margin-bottom: 5px;
     /* Animación de entrada */
     animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
 @keyframes popIn {
-    0% {
-        transform: scale(0);
-        opacity: 0;
-    }
-    100% {
-        transform: scale(1);
-        opacity: 1;
-    }
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
 }
 
 /* =========================================
    Textos
    ========================================= */
 .logout-card h2 {
-    font-size: 2.2rem;
-    color: #222;
+    font-size: 1.8rem;
+    color: var(--text-main);
     font-weight: 800;
+    letter-spacing: -0.5px;
 }
 
 .logout-card p {
-    font-size: 1rem;
-    color: #7a7a7a;
+    font-size: 0.95rem;
+    color: var(--text-muted);
     line-height: 1.6;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     padding: 0 10px;
+}
+
+.logout-card p strong {
+    color: var(--text-main);
+    font-weight: 600;
 }
 
 /* =========================================
@@ -85,18 +103,18 @@ body {
    ========================================= */
 .btn-return {
     display: inline-block;
-    background-color: #ff2a5f;
+    background-color: var(--primary);
     color: white;
     text-decoration: none;
     padding: 12px 35px;
-    border-radius: 25px;
-    font-size: 1rem;
+    border-radius: 8px; /* Redondeado corporativo, no de pastilla */
+    font-size: 0.95rem;
     font-weight: 600;
-    box-shadow: 0 4px 10px rgba(255, 42, 95, 0.3);
-    transition: transform 0.2s ease, background-color 0.3s ease;
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-return:hover {
-    background-color: #e01f4f;
+    background-color: var(--primary-hover);
     transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
 }
