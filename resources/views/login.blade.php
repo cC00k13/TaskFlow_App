@@ -20,7 +20,7 @@
 
             <div class="card-right">
                 <h2>Iniciar Sesión</h2>
-                <p class="subtitle">¿Nuevo en TaskFlow? <a href="{{ route('registro') }}">Crea una cuenta gratis</a>.</p>
+                <p class="subtitle">¿Nuevo en TaskFlow? <a href="{{ route('registro') }}">Crea una cuenta</a>.</p>
                 
                 {{-- Alertas de Laravel (Errores y Éxitos) --}}
                 @error('email')
@@ -51,27 +51,10 @@
                             <input type="checkbox" id="remember" name="remember">
                             <label for="remember">Recordarme</label>
                         </div>
-                        <a href="#" class="forgot-link">¿Olvidaste tu contraseña?</a>
                     </div>
                     
                     <button type="submit" class="btn-primary w-100" style="margin-top: 20px;">Acceder al Dashboard</button>
                 </form>
-
-                <div class="divider">
-                    <span>o accede con redes sociales</span>
-                </div>
-
-                <div class="social-buttons">
-                    <button type="button" class="btn-social google">
-                        <i class="fab fa-google"></i> Google
-                    </button>
-                    <button type="button" class="btn-social facebook">
-                        <i class="fab fa-facebook-f"></i> Facebook
-                    </button>
-                    <button type="button" class="btn-social twitter">
-                        <i class="fab fa-twitter"></i> Twitter
-                    </button>
-                </div>
                 
             </div>
 
