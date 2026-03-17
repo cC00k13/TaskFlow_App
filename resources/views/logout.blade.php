@@ -16,6 +16,7 @@
             </div>
             
             <h2>¡Sesión cerrada!</h2>
+            
             {{-- Usamos session('nombre') que vendrá desde el controlador de PHP --}}
             <p>Has salido de tu cuenta correctamente. ¡Hasta pronto, <strong>{{ session('nombre_usuario', 'Usuario') }}</strong>! Esperamos verte de vuelta para seguir organizando tus proyectos.</p>
             
