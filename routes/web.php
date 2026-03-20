@@ -17,31 +17,60 @@ Route::get('/signup', [RegisterController::class, 'create'])->name('signup.form'
 Route::post('/signup', [RegisterController::class, 'store'])->name('signup.store');
 
 
-// Acción: Al darle clic a "Enviar" en el Login, te lleva al Dashboard
-Route::post('/login', function () {
-    return redirect('/dashboard'); 
+Route::post('/login', function (\Illuminate\Http\Request $request) {
+    
+    $credenciales = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required'],
+    ], [
+        'email.required' => 'El correo electrónico es obligatorio.',
+        'email.email'    => 'Por favor, ingresa un formato de correo válido (ejemplo@correo.com).',
+        'password.required' => 'La contraseña es obligatoria.'
+    ]);
+
+    if (\Illuminate\Support\Facades\Auth::attempt($credenciales)) {
+        $request->session()->regenerate();
+        return redirect()->intended('/dashboard')->with('success', '¡Inicio de sesión exitoso! Bienvenido de nuevo.');
+    }
+
+    return back()->withErrors([
+        'email' => 'Las credenciales no coinciden con nuestros registros.',
+    ]);
+
 })->name('login.post');
 
-// 2. EL REGISTRO: Pantalla para crear cuenta
+// 2. EL REGISTRO: Pantalla para crear cuenta (¡Esta es la ruta que faltaba!)
 Route::get('/registro', function () {
     return view('registro');
 })->name('registro');
 
-// Acción: Al darle clic a "Guardar" en el Registro, te regresa al Login
-Route::post('/registro', function () {
-    return redirect('/'); 
+// Acción: Al darle clic a "Guardar" en el Registro
+Route::post('/registro', function (\Illuminate\Http\Request $request) {
+    
+    // Validar que el correo sea único
+    $request->validate([
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|email|unique:users,email',
+        'password' => 'required'
+    ], [
+        'email.unique' => '¡Error! Este correo ya existe en nuestra base de datos.'
+    ]);
+
+    // Guardar en la base de datos
+    \App\Models\User::create([
+        'name'     => $request->name,
+        'email'    => $request->email,
+        'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+    ]);
+
+    // Redirigir con mensaje de éxito
+    return redirect('/')->with('success', '¡Registro exitoso! Ya puedes iniciar sesión.'); 
 })->name('registro.post');
 
 // 3. EL DASHBOARD: Tu panel principal de tareas
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard') // Importante: así puedes usar route('dashboard')
     ->middleware('auth'); // Protege la ruta
-
-// 4. EL LOGOUT: Botón de salida
-Route::post('/logout', function () {
-    // Asegúrate de que diga 'logout' entre comillas y sin puntos extra
-    return view('logout'); 
-})->name('logout');
 
 // Ruta para logout usando tu controlador personalizado
 Route::post('/logout', [LoginController::class, 'logout'])
@@ -52,3 +81,8 @@ Route::post('/logout', [LoginController::class, 'logout'])
 //Ruta para el controlador de validación de creación de tarea
 Route::get('/task/create', [TaskController::class, 'create']);
 Route::post('/task/create', [TaskController::class, 'store']);
+
+// 5. PANTALLA DE DESPEDIDA: Muestra la vista de logout.blade.php
+Route::get('/despedida', function () {
+    return view('logout');
+})->name('despedida');
