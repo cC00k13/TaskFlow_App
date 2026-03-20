@@ -14,10 +14,20 @@ return new class extends Migration
         Schema::create('tasks', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->string('titulo');
-            $table->text('descripcion')->nullable();
-            $table->date('fecha_entrega');
+            
+            // Datos base
+            $table->string('title');
+            $table->text('description')->nullable();
+            $table->date('due_date');
+            
+            // Detalles extra (Los que iban en la otra migración)
+            $table->string('priority')->default('High');
+            $table->string('status')->default('Pending');
+            $table->string('attachment')->nullable();
+            
+            // Tiempos y Borrado Lógico
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

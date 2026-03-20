@@ -20,7 +20,7 @@
 
     {{-- Lógica para separar y contar tareas --}}
     @php
-        $listaTareas = collect($tareas ?? []);
+        $listaTareas = collect($tasks ?? []);
         $pendientes = $listaTareas->where('estado', '!=', 'completada');
         $completadas = $listaTareas->where('estado', 'completada');
     @endphp
@@ -82,15 +82,14 @@
                                 <input type="hidden" name="estado" value="completada">
                                 <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Marcar como completada">
                             </form>
-
                             <div class="content" onclick="abrirModalEditar(this)" 
-                                 data-id="{{ $tarea->id ?? '' }}" data-titulo="{{ $tarea->titulo ?? '' }}" 
-                                 data-descripcion="{{ $tarea->descripcion ?? '' }}" data-fecha_limite="{{ $tarea->fecha_limite ?? '' }}" 
-                                 data-prioridad="{{ $tarea->prioridad ?? 'media' }}" data-estado="{{ $tarea->estado ?? 'pendiente' }}"
-                                 data-etiquetas="{{ json_encode(isset($tarea->etiquetas) ? $tarea->etiquetas->pluck('id') : []) }}">
-                                
-                                <span class="title">{{ $tarea->titulo }}</span>
-                                
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
+
+                                <span class="title">{{ $tarea->title }}</span>
+
                                 <div class="tags">
                                     <span class="tag priority-{{ strtolower($tarea->prioridad ?? 'media') }}">{{ strtoupper($tarea->prioridad ?? 'MEDIA') }}</span>
                                     
@@ -142,7 +141,7 @@
                             </form>
 
                             <div class="content">
-                                <span class="title">{{ $tarea->titulo }}</span>
+                                <span class="title">{{ $tarea->title }}</span>
                                 <div class="task-meta">
                                     <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
                                 </div>
@@ -170,25 +169,25 @@
                 <button class="btn-close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            <form id="form-tarea" action="/tareas" method="POST" enctype="multipart/form-data">
+            <form action="{{ url('/task/create') }}" method="POST" id="form-tarea" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="metodo-formulario" value="POST">
                 
                 <div class="input-group">
                     <label class="input-label">TÍTULO</label>
-                    <input type="text" name="titulo" id="input-titulo" required class="modern-input" placeholder="Ej. Estudiar para el examen...">
+                    <input type="text" name="title" id="input-titulo" required class="modern-input" placeholder="Ej. Estudiar para el examen...">
                 </div>
                 
                 <div class="input-group">
                     <label class="input-label">DESCRIPCIÓN</label>
-                    <textarea name="descripcion" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
+                    <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
                 </div>
 
                 <div class="input-group">
                     <label class="input-label">ETIQUETAS <small>(Ctrl + Clic para varias)</small></label>
-                    <select name="etiquetas[]" id="input-etiquetas" multiple class="modern-input select-multiple">
-                        @foreach($etiquetas_usuario ?? [] as $etiqueta)
-                            <option value="{{ $etiqueta->id }}">{{ $etiqueta->nombre }}</option>
+                    <select name="labels[]" id="input-etiquetas" multiple class="modern-input select-multiple">
+                        @foreach($labels ?? [] as $etiqueta)
+                            <option value="{{ $etiqueta->id }}">{{ $etiqueta->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -200,32 +199,32 @@
                     </div>
                     <div class="input-group half">
                         <label class="input-label">FECHA LÍMITE</label>
-                        <input type="date" name="fecha_limite" id="input-fecha" class="modern-input">
+                        <input type="date" name="due_date" id="input-fecha" class="modern-input">
                     </div>
                 </div>
 
                 <div class="modal-row">
                     <div class="input-group half">
                         <label class="input-label">PRIORIDAD</label>
-                        <select name="prioridad" id="input-prioridad" class="modern-input">
-                            <option value="baja">Baja</option>
-                            <option value="media">Media</option>
-                            <option value="alta" selected>Alta</option>
+                        <select name="priority" id="input-prioridad" class="modern-input">
+                            <option value="low">Baja</option>
+                            <option value="medium">Media</option>
+                            <option value="high" selected>Alta</option>
                         </select>
                     </div>
                     <div class="input-group half">
                         <label class="input-label">ESTADO</label>
-                        <select name="estado" id="input-estado" class="modern-input">
-                            <option value="pendiente" selected>Pendiente</option>
-                            <option value="progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
+                        <select name="status" id="input-estado" class="modern-input">
+                            <option value="pending" selected>Pendiente</option>
+                            <option value="in_progress">En Progreso</option>
+                            <option value="completed">Completada</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="input-group">
                     <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR ARCHIVO</label>
-                    <input type="file" name="documento" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
+                    <input type="file" name="attachment" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
                 </div>
 
                 <div class="form-actions">
@@ -244,7 +243,7 @@
                 <button class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            <form action="/etiquetas" method="POST" class="tag-form">
+            <form action="{{ url('/label/create') }}" method="POST" class="tag-form">
                 @csrf
                 <div class="modal-row">
                     <div class="input-group half">
@@ -262,10 +261,10 @@
             <div class="tag-manager">
                 <label class="input-label">ETIQUETAS ACTUALES</label>
                 <ul class="tag-list-manager">
-                    @forelse($etiquetas_usuario ?? [] as $etiqueta)
+                    @forelse($labels ?? [] as $etiqueta)
                         <li class="tag-item-manager" style="border-left-color: {{ $etiqueta->color }};">
-                            <span>{{ $etiqueta->nombre }}</span>
-                            <form action="/etiquetas/{{ $etiqueta->id }}" method="POST" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
+                            <span>{{ $etiqueta->name }}</span>
+                            <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn-icon delete-tag"><i class="fas fa-trash"></i></button>
                             </form>
@@ -285,7 +284,7 @@
         function abrirModalNuevaTarea() {
             const form = document.getElementById('form-tarea');
             document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
-            form.action = '/tareas';
+            form.action = '{{ url('/task/create') }}';
             document.getElementById('metodo-formulario').value = 'POST';
             form.reset();
             
