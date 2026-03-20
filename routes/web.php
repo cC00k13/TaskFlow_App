@@ -86,3 +86,26 @@ Route::post('/task/create', [TaskController::class, 'store']);
 Route::get('/despedida', function () {
     return view('logout');
 })->name('despedida');
+
+// Ruta para guardar nuevas etiquetas
+Route::post('/label/create', function (\Illuminate\Http\Request $request) {
+    
+    $request->validate([
+        'nombre' => 'required|string|max:50',
+        'color'  => 'required|string'
+    ]);
+
+    \App\Models\Label::create([
+        'user_id' => \Illuminate\Support\Facades\Auth::id(),
+        'name'    => $request->nombre,
+        'color'   => $request->color,
+    ]);
+
+    return back()->with('success', '¡Etiqueta creada exitosamente!');
+    
+})->middleware('auth');
+
+// Ruta para cambiar el estado de una tarea (Pendiente <-> Completada)
+Route::patch('/tareas/{id}/estado', [\App\Http\Controllers\TaskController::class, 'toggleStatus'])
+    ->name('task.toggleStatus')
+    ->middleware('auth');
