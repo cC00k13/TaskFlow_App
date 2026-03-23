@@ -18,11 +18,18 @@ class TaskController extends Controller
 
     public function index()
     {
-        
-        $tasks = Auth::user()
+
+        //Descomentar cuando se haya arreglado el problema de la relacion entre el User model y Task controller
+        /*$tasks = Auth::user()
             ->tasks()
             ->latest()  
             ->get();
+
+        return view('tasks.index', compact('tasks')); */
+
+        $tasks = Task::where('user_id', Auth::id())
+        ->latest()
+        ->get();
 
         return view('tasks.index', compact('tasks'));
     }
