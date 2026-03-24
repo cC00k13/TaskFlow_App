@@ -7,26 +7,44 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
 use App\Models\Task;
+use App\Models\Label; // Agregado para que no marque error en el index
 use Illuminate\Support\Facades\Auth; 
 
 class TaskController extends Controller
 {
-    public function index()
+    public function index(Request $request) // Se añade Request para escuchar los filtros del usuario
     {
-        // Traemos las tareas (con sus etiquetas para evitar lentitud)
-        $tasks = Task::with('labels')
-                     ->where('user_id', Auth::id())
-                     ->orderBy('due_date', 'asc')
-                     ->get();
+        // 1. Iniciamos la consulta base (solo tareas de este usuario)
+        $query = Task::with('labels')->where('user_id', Auth::id());
 
-        // Traemos las etiquetas que el usuario ha creado
-        $labels = \App\Models\Label::where('user_id', Auth::id())->get();
+        // 2. Escuchamos la petición de ordenamiento que viene del frontend
+        $orden = $request->input('ordenar_por', 'fecha_proxima'); // Por defecto ordena por la más próxima
 
-        // Mandamos las variables en inglés a la vista
+        switch ($orden) {
+            case 'mas_recientes':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'prioridad_alta':
+                // Nota: Asumiendo que high > medium > low. Puede requerir ajuste según cómo guarden los datos.
+                $query->orderByRaw("CASE WHEN priority = 'high' THEN 1 WHEN priority = 'medium' THEN 2 ELSE 3 END");
+                break;
+            case 'fecha_proxima':
+            default:
+                $query->orderBy('due_date', 'asc');
+                break;
+        }
+
+        // 3. Ejecutamos la consulta para traer las tareas ya ordenadas
+        $tasks = $query->get();
+
+        // 4. Traemos las etiquetas que el usuario ha creado
+        $labels = Label::where('user_id', Auth::id())->get();
+
+        // 5. Mandamos las variables a la vista
         return view('dashboard', compact('tasks', 'labels')); 
     }
 
-    // Mantenemos tu método create original por si lo usas fuera del modal
+    // Mantenemos el método create original por si lo usas fuera del modal
     public function create(): View 
     {
         return view('task.create');
@@ -34,13 +52,12 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse 
     {
-        // 1. Validamos todos los campos de tu modal y arreglamos la regla de fecha
+        // 1. Validamos todos los campos (Quitamos 'status' porque el backend lo forzará)
         $validated = $request->validate([
             'title'       => 'required|max:255',
             'description' => 'nullable|string',
-            'due_date'    => ['required', 'date', Rule::date()->todayOrAfter()], // Tu regla adaptada al nuevo nombre
+            'due_date'    => ['required', 'date', Rule::date()->todayOrAfter()],
             'priority'    => 'required|string', 
-            'status'      => 'required|string',
             'attachment'  => 'nullable|file|max:2048',
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
@@ -52,14 +69,14 @@ class TaskController extends Controller
             $rutaArchivo = $request->file('attachment')->store('attachments', 'public');
         }
 
-        // 3. Crear la Tarea inyectando el ID del usuario de forma segura por backend
+        // 3. Crear la Tarea inyectando el ID del usuario de forma segura y FORZANDO el estado
         $task = Task::create([
             'user_id'     => Auth::id(),
             'title'       => $validated['title'],
             'description' => $validated['description'],
             'due_date'    => $validated['due_date'],
             'priority'    => $validated['priority'],
-            'status'      => $validated['status'],
+            'status'      => 'pending', // ¡EL CANDADO DE SEGURIDAD! Siempre nace pendiente
             'attachment'  => $rutaArchivo,
         ]);
 
@@ -82,16 +99,14 @@ class TaskController extends Controller
             abort(403, 'Acceso denegado. Esta tarea no te pertenece.');
         }
 
-        // 3. Traducir lo que manda el formulario (español) a la base de datos (inglés)
-        $estadoRecibido = $request->input('estado'); // Viene como 'completada' o 'pendiente'
-        $estadoParaDb = ($estadoRecibido === 'completada') ? 'completed' : 'pending';
-
+        // 3. Leemos el 'status' exacto que nos mandó el checkbox del frontend ('completed' o 'pending')
+        $task->status = $request->input('status');
+        
         // 4. Guardar permanentemente para no perder el progreso
-        $task->status = $estadoParaDb;
         $task->save();
 
         // 5. Regresar al Dashboard silenciosamente
-        return back()->with('success', '¡Progreso guardado!');
+        return back()->with('success', '¡Estado de la tarea actualizado!');
     }
 
     public function update(Request $request, $id)
@@ -136,7 +151,6 @@ class TaskController extends Controller
         return redirect('/dashboard')->with('success', '¡Tarea actualizada correctamente!');
     }
 
-
     public function destroy($id)
     {
         // 1. Encontrar la tarea (incluso si estuviera "oculta" por SoftDeletes)
@@ -147,7 +161,7 @@ class TaskController extends Controller
             abort(403, 'Acceso denegado. No puedes eliminar esta tarea.');
         }
 
-        // 3.  Remover permanentemente y liberar espacio en BD
+        // 3. Remover permanentemente y liberar espacio en BD
         $task->forceDelete();
 
         // 4. Recargar la página con mensaje de confirmación

@@ -18,11 +18,19 @@
     <script>setTimeout(() => { let t = document.getElementById('toast-exito'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 3500);</script>
     @endif
 
-    {{-- Lógica para separar y contar tareas --}}
+    {{-- Lógica para separar y ordenar tareas automáticamente --}}
     @php
         $listaTareas = collect($tasks ?? []);
-        $pendientes = $listaTareas->where('estado', '!=', 'completada');
-        $completadas = $listaTareas->where('estado', 'completada');
+
+        // 1. Tareas Pendientes: Filtradas y ordenadas por fecha más próxima (por defecto)
+        $pendientes = $listaTareas->where('status', '!=', 'completed')
+                                  ->sortBy(function($tarea) {
+                                      // Si no tiene fecha, la mandamos al final (año 9999) para que no estorbe
+                                      return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date;
+                                  });
+
+        // 2. Tareas Completadas
+        $completadas = $listaTareas->where('status', 'completed');
     @endphp
 
     <main class="dashboard-container">
@@ -57,14 +65,16 @@
                 </div>
                 
                 <div class="filters-and-summary">
-                    {{-- AQUÍ ESTÁ EL SELECTOR "ORDENAR POR" RESTAURADO --}}
                     <div class="filter-bar">
                         <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
-                        <select class="select-ordenar">
-                            <option selected>Más próximas a vencer</option>
-                            <option>Más recientes</option>
-                            <option>Prioridad más alta</option>
-                        </select>
+                        {{-- CONEXIÓN AL BACKEND: Formulario automático para reordenar --}}
+                        <form action="{{ route('dashboard') }}" method="GET" style="display: inline;">
+                            <select name="ordenar_por" class="select-ordenar" onchange="this.form.submit()">
+                                <option value="fecha_proxima" {{ request('ordenar_por') == 'fecha_proxima' ? 'selected' : '' }}>Más próximas a vencer</option>
+                                <option value="mas_recientes" {{ request('ordenar_por') == 'mas_recientes' ? 'selected' : '' }}>Más recientes</option>
+                                <option value="prioridad_alta" {{ request('ordenar_por') == 'prioridad_alta' ? 'selected' : '' }}>Prioridad más alta</option>
+                            </select>
+                        </form>
                     </div>
                     
                     <span class="badge-pending">{{ $pendientes->count() }} Tareas Pendientes</span>
@@ -77,11 +87,13 @@
                 <ul class="task-list">
                     @forelse($pendientes as $tarea)
                         <li class="task-item">
+                            {{-- Formulario rápido para completar tarea --}}
                             <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
                                 @csrf @method('PATCH') 
-                                <input type="hidden" name="estado" value="completada">
+                                <input type="hidden" name="status" value="completed">
                                 <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Marcar como completada">
                             </form>
+                            
                             <div class="content" onclick="abrirModalEditar(this)" 
                                 data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
                                 data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
@@ -91,20 +103,20 @@
                                 <span class="title">{{ $tarea->title }}</span>
 
                                 <div class="tags">
-                                    <span class="tag priority-{{ strtolower($tarea->prioridad ?? 'media') }}">{{ strtoupper($tarea->prioridad ?? 'MEDIA') }}</span>
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
                                     
-                                    @foreach($tarea->etiquetas ?? [] as $etiqueta)
-                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->nombre }}</span>
+                                    @foreach($tarea->labels ?? [] as $etiqueta)
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
                                     @endforeach
                                 </div>
 
                                 <div class="task-meta">
-                                    @if(!empty($tarea->fecha_limite))
-                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->fecha_limite)->isPast() ? 'overdue' : '' }}">
-                                            <i class="far fa-clock"></i> {{ $tarea->fecha_limite }}
+                                    @if(!empty($tarea->due_date))
+                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
+                                            <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
                                     @endif
-                                    @if(!empty($tarea->documento))
+                                    @if(!empty($tarea->attachment))
                                         <span class="meta-file"><i class="fas fa-paperclip"></i> Archivo adjunto</span>
                                     @endif
                                 </div>
@@ -134,9 +146,10 @@
                 <ul class="task-list">
                     @foreach($completadas as $tarea)
                         <li class="task-item completed">
+                            {{-- Formulario rápido para deshacer tarea completada --}}
                             <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
                                 @csrf @method('PATCH') 
-                                <input type="hidden" name="estado" value="pendiente">
+                                <input type="hidden" name="status" value="pending">
                                 <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Desmarcar">
                             </form>
 
@@ -288,7 +301,7 @@
             document.getElementById('metodo-formulario').value = 'POST';
             form.reset();
             
-            document.getElementById('input-estado').value = 'pendiente';
+            document.getElementById('input-estado').value = 'pending'; // Corregido al inglés para el backend
             document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
             
             Array.from(document.getElementById('input-etiquetas').options).forEach(opt => opt.selected = false);

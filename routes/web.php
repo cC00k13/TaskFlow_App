@@ -1,24 +1,27 @@
 <?php
 
-
 use Illuminate\Support\Facades\Route;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TaskController;
+use App\Models\User;
+use App\Models\Label;
 
-// 1. LA ENTRADA: Siempre empezamos en el Login
+/* =========================================
+   1. AUTENTICACIÓN (Login y Registro)
+   ========================================= */
+
+// Mostrar vista de Login
 Route::get('/', function () {
     return view('login');
 })->name('login');
 
-Route::get('/signup', [RegisterController::class, 'create'])->name('signup.form');
-
-Route::post('/signup', [RegisterController::class, 'store'])->name('signup.store');
-
-
-Route::post('/login', function (\Illuminate\Http\Request $request) {
-    
+// Procesar el Login
+Route::post('/login', function (Request $request) {
     $credenciales = $request->validate([
         'email' => ['required', 'email'],
         'password' => ['required'],
@@ -28,7 +31,7 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
         'password.required' => 'La contraseña es obligatoria.'
     ]);
 
-    if (\Illuminate\Support\Facades\Auth::attempt($credenciales)) {
+    if (Auth::attempt($credenciales)) {
         $request->session()->regenerate();
         return redirect()->intended('/dashboard')->with('success', '¡Inicio de sesión exitoso! Bienvenido de nuevo.');
     }
@@ -36,18 +39,15 @@ Route::post('/login', function (\Illuminate\Http\Request $request) {
     return back()->withErrors([
         'email' => 'Las credenciales no coinciden con nuestros registros.',
     ]);
-
 })->name('login.post');
 
-// 2. EL REGISTRO: Pantalla para crear cuenta (¡Esta es la ruta que faltaba!)
+// Mostrar vista de Registro
 Route::get('/registro', function () {
     return view('registro');
 })->name('registro');
 
-// Acción: Al darle clic a "Guardar" en el Registro
-Route::post('/registro', function (\Illuminate\Http\Request $request) {
-    
-    // Validar que el correo sea único
+// Procesar el Registro
+Route::post('/registro', function (Request $request) {
     $request->validate([
         'name'     => 'required|string|max:255',
         'email'    => 'required|email|unique:users,email',
@@ -56,66 +56,84 @@ Route::post('/registro', function (\Illuminate\Http\Request $request) {
         'email.unique' => '¡Error! Este correo ya existe en nuestra base de datos.'
     ]);
 
-    // Guardar en la base de datos
-    \App\Models\User::create([
+    User::create([
         'name'     => $request->name,
         'email'    => $request->email,
-        'password' => \Illuminate\Support\Facades\Hash::make($request->password),
+        'password' => Hash::make($request->password),
     ]);
 
-    // Redirigir con mensaje de éxito
     return redirect('/')->with('success', '¡Registro exitoso! Ya puedes iniciar sesión.'); 
 })->name('registro.post');
 
-// 3. EL DASHBOARD: Tu panel principal de tareas
-Route::get('/dashboard', [DashboardController::class, 'index'])
-    ->name('dashboard') // Importante: así puedes usar route('dashboard')
-    ->middleware('auth'); // Protege la ruta
+// Procesar Logout y Vista de Despedida
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout')->middleware('auth');
 
-// Ruta para logout usando tu controlador personalizado
-Route::post('/logout', [LoginController::class, 'logout'])
-    ->name('logout')
-    ->middleware('auth'); // Asegurar que solo usuarios autenticados puedan hacer logout
-
-
-//Ruta para el controlador de validación de creación de tarea
-Route::get('/task/create', [TaskController::class, 'create']);
-Route::post('/task/create', [TaskController::class, 'store']);
-
-// 5. PANTALLA DE DESPEDIDA: Muestra la vista de logout.blade.php
 Route::get('/despedida', function () {
     return view('logout');
 })->name('despedida');
 
-// Ruta para guardar nuevas etiquetas
-Route::post('/label/create', function (\Illuminate\Http\Request $request) {
+
+/* =========================================
+   2. DASHBOARD (Panel Principal)
+   ========================================= */
+Route::get('/dashboard', [DashboardController::class, 'index'])
+    ->name('dashboard')
+    ->middleware('auth');
+
+
+/* =========================================
+   3. TAREAS (CRUD y Estados)
+   ========================================= */
+Route::middleware('auth')->group(function () {
     
-    $request->validate([
-        'nombre' => 'required|string|max:50',
-        'color'  => 'required|string'
-    ]);
-
-    \App\Models\Label::create([
-        'user_id' => \Illuminate\Support\Facades\Auth::id(),
-        'name'    => $request->nombre,
-        'color'   => $request->color,
-    ]);
-
-    return back()->with('success', '¡Etiqueta creada exitosamente!');
+    // Crear Tarea
+    Route::get('/task/create', [TaskController::class, 'create']);
+    Route::post('/task/create', [TaskController::class, 'store']);
     
-})->middleware('auth');
+    // Actualizar Tarea Completa (Editar)
+    Route::put('/task/{id}', [TaskController::class, 'update'])->name('task.update');
+    
+    // Eliminar Tarea
+    Route::delete('/task/{id}', [TaskController::class, 'destroy'])->name('task.destroy');
 
-// Ruta para cambiar el estado de una tarea (Pendiente <-> Completada)
-Route::patch('/tareas/{id}/estado', [\App\Http\Controllers\TaskController::class, 'toggleStatus'])
-    ->name('task.toggleStatus')
-    ->middleware('auth');
+    // Cambiar Estado (Pendiente <-> Completada)
+    Route::patch('/tareas/{id}/estado', [TaskController::class, 'toggleStatus'])->name('task.toggleStatus');
 
-// Ruta para RECIBIR los cambios de una tarea existente (Update)
-Route::put('/task/{id}', [\App\Http\Controllers\TaskController::class, 'update'])
-    ->name('task.update')
-    ->middleware('auth');
+});
 
-    // Ruta para ELIMINAR una tarea (Destroy)
-Route::delete('/task/{id}', [\App\Http\Controllers\TaskController::class, 'destroy'])
-    ->name('task.destroy')
-    ->middleware('auth');
+
+/* =========================================
+   4. ETIQUETAS (Labels)
+   ========================================= */
+Route::middleware('auth')->group(function () {
+
+    // Crear nueva etiqueta
+    Route::post('/label/create', function (Request $request) {
+        $request->validate([
+            'nombre' => 'required|string|max:50',
+            'color'  => 'required|string'
+        ]);
+
+        Label::create([
+            'user_id' => Auth::id(),
+            'name'    => $request->nombre,
+            'color'   => $request->color,
+        ]);
+
+        return back()->with('success', '¡Etiqueta creada exitosamente!');
+    });
+
+    // Eliminar etiqueta (¡ESTA ES LA RUTA QUE FALTABA!)
+    Route::delete('/labels/{id}', function ($id) {
+        $label = Label::findOrFail($id);
+
+        // Seguridad: Solo el dueño puede borrar su etiqueta
+        if ($label->user_id !== Auth::id()) {
+            abort(403, 'No puedes eliminar esta etiqueta.');
+        }
+
+        $label->delete();
+        return back()->with('success', '¡Etiqueta eliminada!');
+    });
+
+});
