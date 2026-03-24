@@ -52,3 +52,6 @@ Route::post('/logout', [LoginController::class, 'logout'])
 //Ruta para el controlador de validación de creación de tarea
 Route::get('/task/create', [TaskController::class, 'create']);
 Route::post('/task/create', [TaskController::class, 'store']);
+
+//ruta para la edicion de tareas
+Route::resource('tasks', TaskController::class);
