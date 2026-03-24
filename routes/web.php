@@ -109,3 +109,13 @@ Route::post('/label/create', function (\Illuminate\Http\Request $request) {
 Route::patch('/tareas/{id}/estado', [\App\Http\Controllers\TaskController::class, 'toggleStatus'])
     ->name('task.toggleStatus')
     ->middleware('auth');
+
+// Ruta para RECIBIR los cambios de una tarea existente (Update)
+Route::put('/task/{id}', [\App\Http\Controllers\TaskController::class, 'update'])
+    ->name('task.update')
+    ->middleware('auth');
+
+    // Ruta para ELIMINAR una tarea (Destroy)
+Route::delete('/task/{id}', [\App\Http\Controllers\TaskController::class, 'destroy'])
+    ->name('task.destroy')
+    ->middleware('auth');

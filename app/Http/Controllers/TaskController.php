@@ -93,4 +93,64 @@ class TaskController extends Controller
         // 5. Regresar al Dashboard silenciosamente
         return back()->with('success', '¡Progreso guardado!');
     }
+
+    public function update(Request $request, $id)
+    {
+        // 1. Buscar la tarea original
+        $task = Task::findOrFail($id);
+
+        // 2. Seguridad: Evitar que modifiquen tareas de otros alumnos
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Acceso denegado. No puedes editar esta tarea.');
+        }
+
+        // 3. Validar los datos que vienen del formulario del modal
+        $validated = $request->validate([
+            'title'       => 'required|max:255',
+            'description' => 'nullable|string',
+            'due_date'    => 'required|date',
+            'priority'    => 'required|string', 
+            'status'      => 'required|string',
+            'labels'      => 'nullable|array',
+            'labels.*'    => 'exists:labels,id'
+        ]);
+
+        // 4. Sobreescribir los datos escalares en la base de datos
+        $task->update([
+            'title'       => $validated['title'],
+            'description' => $validated['description'],
+            'due_date'    => $validated['due_date'],
+            'priority'    => $validated['priority'],
+            'status'      => $validated['status'],
+        ]);
+
+        // 5. Sincronizar las etiquetas (La magia de sync)
+        if ($request->has('labels')) {
+            $task->labels()->sync($validated['labels']);
+        } else {
+            // Si el usuario desmarcó todas las etiquetas, vaciamos la relación
+            $task->labels()->detach(); 
+        }
+
+        // 6. Regresar al panel con éxito
+        return redirect('/dashboard')->with('success', '¡Tarea actualizada correctamente!');
+    }
+
+
+    public function destroy($id)
+    {
+        // 1. Encontrar la tarea (incluso si estuviera "oculta" por SoftDeletes)
+        $task = Task::withTrashed()->findOrFail($id);
+
+        // 2. Solo el dueño puede destruirla
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Acceso denegado. No puedes eliminar esta tarea.');
+        }
+
+        // 3.  Remover permanentemente y liberar espacio en BD
+        $task->forceDelete();
+
+        // 4. Recargar la página con mensaje de confirmación
+        return back()->with('success', '¡Tarea eliminada permanentemente!');
+    }
 }

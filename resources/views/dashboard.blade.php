@@ -112,8 +112,8 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="/tareas/{{ $tarea->id ?? 0 }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
-                                    @csrf @method('DELETE')
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
@@ -148,8 +148,8 @@
                             </div>
                             
                             <div class="actions">
-                                <form action="/tareas/{{ $tarea->id ?? 0 }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
-                                    @csrf @method('DELETE')
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
@@ -297,7 +297,7 @@
 
         function abrirModalEditar(elemento) {
             document.getElementById('modal-titulo-principal').innerText = 'Editar Tarea';
-            document.getElementById('form-tarea').action = '/tareas/' + elemento.getAttribute('data-id');
+            document.getElementById('form-tarea').action = '/task/' + elemento.getAttribute('data-id');
             document.getElementById('metodo-formulario').value = 'PUT';
             
             document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
