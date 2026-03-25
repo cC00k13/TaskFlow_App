@@ -53,22 +53,6 @@
                     
                     <button type="submit" class="btn-primary w-100">Registrarse</button>
                 </form>
-
-                <div class="divider">
-                    <span>Registro con redes sociales</span>
-                </div>
-
-                <div class="social-buttons">
-                    <button type="button" class="btn-social google">
-                        <i class="fab fa-google"></i> Google
-                    </button>
-                    <button type="button" class="btn-social facebook">
-                        <i class="fab fa-facebook-f"></i> Facebook
-                    </button>
-                    <button type="button" class="btn-social twitter">
-                        <i class="fab fa-twitter"></i> Twitter
-                    </button>
-                </div>
             </div>
 
         </div>

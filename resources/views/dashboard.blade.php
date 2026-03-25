@@ -6,6 +6,9 @@
     <title>TaskFlow - Mis Tareas</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {{-- NUEVO: Librería SortableJS para Arrastrar y Soltar --}}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
 <body>
     
@@ -29,12 +32,15 @@
     <script>setTimeout(() => { let t = document.getElementById('toast-error'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 4500);</script>
     @endif
 
-    {{-- Lógica de Tareas --}}
+    {{-- Lógica de Tareas (Dividido en 3 estados) --}}
     @php
         $listaTareas = collect($tasks ?? []);
-        $pendientes = $listaTareas->where('status', '!=', 'completed')->sortBy(function($tarea) {
+        $ordenarPorFecha = function($tarea) {
             return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date;
-        });
+        };
+
+        $pendientes = $listaTareas->where('status', 'pending')->sortBy($ordenarPorFecha);
+        $enProgreso = $listaTareas->where('status', 'in_progress')->sortBy($ordenarPorFecha);
         $completadas = $listaTareas->where('status', 'completed');
     @endphp
 
@@ -78,19 +84,25 @@
                             </select>
                         </form>
                     </div>
-                    <span class="badge-pending">{{ $pendientes->count() }} Tareas Pendientes</span>
+                    <span class="badge-pending">{{ $pendientes->count() + $enProgreso->count() }} Tareas Activas</span>
                 </div>
             </section>
 
+            {{-- ==========================================
+                 SECCIÓN 1: PENDIENTES
+                 ========================================== --}}
             <section class="task-section">
-                <h3 class="section-title">En Curso</h3>
-                <ul class="task-list">
+                <h3 class="section-title">Pendientes</h3>
+                {{-- NUEVO: id para SortableJS y data-status para saber a dónde se soltó --}}
+                <ul class="task-list sortable-list" id="list-pending" data-status="pending" style="min-height: 50px; padding-bottom: 20px;">
                     @forelse($pendientes as $tarea)
-                        <li class="task-item">
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                        <li class="task-item draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
                                 <input type="hidden" name="status" value="completed">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Marcar como completada">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
                             </form>
                             
                             <div class="content" onclick="abrirModalEditar(this)" 
@@ -112,15 +124,12 @@
                                             <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
                                     @endif
-                                    @if(!empty($tarea->attachment))
-                                        <span class="meta-file"><i class="fas fa-paperclip"></i> Archivo adjunto</span>
-                                    @endif
                                 </div>
                             </div>
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -128,23 +137,82 @@
                         </li>
                     @empty
                         <div class="empty-state">
-                            <i class="fas fa-check-circle"></i>
-                            <p>¡Todo al día! No tienes tareas pendientes.</p>
+                            <i class="fas fa-list-ul"></i>
+                            <p>No tienes tareas pendientes nuevas.</p>
                         </div>
                     @endforelse
                 </ul>
             </section>
 
-            @if($completadas->count() > 0)
+            {{-- ==========================================
+                 SECCIÓN 2: EN PROGRESO
+                 ========================================== --}}
+            <section class="task-section mt-4">
+                <h3 class="section-title" style="color: #0284c7; border-color: #0284c7;">En Progreso</h3>
+                <ul class="task-list sortable-list" id="list-in_progress" data-status="in_progress" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($enProgreso as $tarea)
+                        <li class="task-item draggable-item" style="border-left-color: #0284c7;" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
+                                @csrf @method('PATCH') 
+                                <input type="hidden" name="status" value="completed">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
+                            </form>
+                            
+                            <div class="content" onclick="abrirModalEditar(this)" 
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
+
+                                <span class="title">{{ $tarea->title }}</span>
+                                <div class="tags">
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
+                                    @foreach($tarea->labels ?? [] as $etiqueta)
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
+                                    @endforeach
+                                </div>
+                                <div class="task-meta">
+                                    @if(!empty($tarea->due_date))
+                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
+                                            <i class="far fa-clock"></i> {{ $tarea->due_date }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            <div class="actions">
+                                <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                @csrf @method('DELETE')
+                                    <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </li>
+                    @empty
+                        <div class="empty-state">
+                            <i class="fas fa-spinner"></i>
+                            <p>No tienes tareas en progreso.</p>
+                        </div>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- ==========================================
+                 SECCIÓN 3: COMPLETADAS
+                 ========================================== --}}
             <section class="task-section mt-4">
                 <h3 class="section-title text-muted">Completadas</h3>
-                <ul class="task-list">
-                    @foreach($completadas as $tarea)
-                        <li class="task-item completed">
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                <ul class="task-list sortable-list" id="list-completed" data-status="completed" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($completadas as $tarea)
+                        <li class="task-item completed draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
                                 <input type="hidden" name="status" value="pending">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Desmarcar">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Devolver a pendientes">
                             </form>
                             <div class="content">
                                 <span class="title">{{ $tarea->title }}</span>
@@ -153,16 +221,17 @@
                                 </div>
                             </div>
                             <div class="actions">
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
                         </li>
-                    @endforeach
+                    @empty
+                        {{-- Espacio para soltar --}}
+                    @endforelse
                 </ul>
             </section>
-            @endif
         </div>
     </main>
 
@@ -308,7 +377,6 @@
                                 <span class="tag-text">{{ $etiqueta->name }}</span>
                             </div>
                             
-                            {{-- AQUÍ APLICAMOS LA CLASE 'actions' ORIGINAL DEL DASHBOARD --}}
                             <div class="actions">
                                 <button type="button" class="btn-icon edit" title="Editar" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
                                     <i class="fas fa-pen"></i>
@@ -332,6 +400,113 @@
          SCRIPTS GLOBALES
          ========================================== --}}
     <script>
+        const FECHA_HOY = "{{ date('Y-m-d') }}";
+
+        // ==========================================
+        // NUEVO: Lógica Drag and Drop (Arrastrar)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar las 3 listas como arrastrables y conectadas entre sí
+            const sortableOptions = {
+                group: 'tareas', // Permite arrastrar entre diferentes listas
+                animation: 150,  // Efecto visual suave
+                handle: '.drag-handle', // Solo se arrastra desde el icono de los puntitos
+                ghostClass: 'sortable-ghost', // Clase CSS mientras se arrastra
+                
+                // Función que se ejecuta cuando sueltas una tarea en otra lista
+                onEnd: function (evt) {
+                    const itemEl = evt.item;  // El elemento <li> que arrastramos
+                    const toList = evt.to;    // La lista <ul> donde lo soltamos
+                    
+                    const taskId = itemEl.getAttribute('data-id');
+                    const newStatus = toList.getAttribute('data-status');
+                    
+                    // Si se soltó en la misma lista, solo reordenamos
+                    // Quitamos el "return;" para que, incluso si la sueltas en la misma lista, se auto-acomode por fecha.
+
+                    // 1. Capturamos los elementos internos de la tarjeta
+                    const checkbox = itemEl.querySelector('.task-check');
+                    const hiddenInput = itemEl.querySelector('input[name="status"]'); 
+                    const contentDiv = itemEl.querySelector('.content'); 
+
+                    // 2. Actualizamos el dato oculto para el Modal de Edición
+                    if(contentDiv) {
+                        contentDiv.setAttribute('data-estado', newStatus);
+                    }
+
+                    // 3. Cambiamos los estilos según la columna
+                    if (newStatus === 'completed') {
+                        itemEl.classList.add('completed');
+                        itemEl.style.borderLeftColor = ''; 
+                        if(checkbox) { checkbox.checked = true; checkbox.title = "Devolver a pendientes"; }
+                        if(hiddenInput) hiddenInput.value = 'pending'; 
+                    } else {
+                        itemEl.classList.remove('completed');
+                        if (newStatus === 'in_progress') {
+                            itemEl.style.borderLeftColor = '#0284c7'; // Azul
+                        } else {
+                            itemEl.style.borderLeftColor = ''; // Default
+                        }
+                        if(checkbox) { checkbox.checked = false; checkbox.title = "Marcar como completada"; }
+                        if(hiddenInput) hiddenInput.value = 'completed';
+                    }
+
+                    // ==========================================
+                    // 4. NUEVO: ORDENAMIENTO AUTOMÁTICO POR FECHA
+                    // ==========================================
+                    // Convertimos todos los <li> de la lista destino en un arreglo para poder ordenarlos
+                    const itemsEnLista = Array.from(toList.querySelectorAll('.task-item'));
+                    
+                    itemsEnLista.sort((a, b) => {
+                        const contentA = a.querySelector('.content');
+                        const contentB = b.querySelector('.content');
+                        
+                        // Extraemos las fechas
+                        let fechaA = contentA ? contentA.getAttribute('data-fecha_limite') : '';
+                        let fechaB = contentB ? contentB.getAttribute('data-fecha_limite') : '';
+                        
+                        // Si no tienen fecha, les asignamos una en el año 9999 para que se vayan al fondo
+                        if (!fechaA) fechaA = '9999-12-31';
+                        if (!fechaB) fechaB = '9999-12-31';
+                        
+                        // Comparamos las fechas (las más próximas primero)
+                        return fechaA.localeCompare(fechaB);
+                    });
+
+                    // Volvemos a inyectar los <li> en el <ul> en el orden correcto
+                    // (El navegador los moverá visualmente de forma instantánea)
+                    itemsEnLista.forEach(item => toList.appendChild(item));
+                    // ==========================================
+
+                    // 5. Petición AJAX (Fetch) al backend para guardar en BD (Solo si cambió de lista)
+                    if (evt.from !== toList) {
+                        fetch(`/tareas/${taskId}/estado-ajax`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ status: newStatus })
+                        })
+                        .then(response => {
+                            if(!response.ok) throw new Error('Error al actualizar');
+                        })
+                        .catch(error => {
+                            console.error('Fallo al actualizar estado:', error);
+                        });
+                    }
+                }
+            };
+
+            // Aplicar Sortable a las tres listas
+            new Sortable(document.getElementById('list-pending'), sortableOptions);
+            new Sortable(document.getElementById('list-in_progress'), sortableOptions);
+            new Sortable(document.getElementById('list-completed'), sortableOptions);
+        });
+
+        // ==========================================
+        // Funciones de Modales Originales
+        // ==========================================
         function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
         
         // --- Lógica Modal Etiquetas ---
@@ -384,6 +559,8 @@
             document.getElementById('input-estado').value = 'pending';
             document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
             
+            document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
+
             document.querySelectorAll('.label-checkbox-input').forEach(cb => cb.checked = false);
             document.getElementById('task-modal').style.display = 'flex';
         }
@@ -393,12 +570,20 @@
             document.getElementById('form-tarea').action = '/task/' + elemento.getAttribute('data-id');
             document.getElementById('metodo-formulario').value = 'PUT';
             
+            let fechaLimite = elemento.getAttribute('data-fecha_limite');
+
             document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
             document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
-            document.getElementById('input-fecha').value = elemento.getAttribute('data-fecha_limite');
+            document.getElementById('input-fecha').value = fechaLimite;
             document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
             document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
             
+            if (fechaLimite && fechaLimite < FECHA_HOY) {
+                document.getElementById('input-fecha').setAttribute('min', fechaLimite);
+            } else {
+                document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
+            }
+
             let etiquetas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
             document.querySelectorAll('.label-checkbox-input').forEach(checkbox => {
                 checkbox.checked = etiquetas.includes(parseInt(checkbox.value));

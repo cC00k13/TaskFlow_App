@@ -167,4 +167,15 @@ class TaskController extends Controller
         // 4. Recargar la página con mensaje de confirmación
         return back()->with('success', '¡Tarea eliminada permanentemente!');
     }
+    public function updateStatusAjax(Request $request, $id)
+    {
+    $request->validate([
+        'status' => 'required|in:pending,in_progress,completed'
+    ]);
+
+    $task = Task::findOrFail($id);
+    $task->update(['status' => $request->status]);
+
+    return response()->json(['success' => true]);
+    }
 }

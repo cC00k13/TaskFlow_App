@@ -754,6 +754,44 @@ textarea.modern-input {
 }
 
 /* =========================================
+   NUEVO: Estilos para Arrastrar y Soltar (Drag & Drop)
+   ========================================= */
+.draggable-item {
+    position: relative;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #cbd5e1;
+    padding: 10px 10px 10px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.drag-handle:hover, .drag-handle:active {
+    color: #94a3b8;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Efecto visual mientras arrastras la tarjeta */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #e2e8f0 !important;
+    border: 1px dashed #94a3b8 !important;
+}
+
+/* Para que la lista vacía siga teniendo espacio donde soltar */
+.sortable-list {
+    min-height: 50px;
+    padding-bottom: 20px;
+}
+
+/* =========================================
    Responsive Design
    ========================================= */
 @media (max-width: 768px) {
