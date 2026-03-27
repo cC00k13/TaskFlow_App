@@ -52,15 +52,24 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse 
     {
-        // 1. Validamos todos los campos (Quitamos 'status' porque el backend lo forzará)
+        // 1. Validamos todos los campos (Con reglas de unicidad)
         $validated = $request->validate([
-            'title'       => 'required|max:255',
+            'title' => [
+                'required', 
+                'string', 
+                'max:255',
+                Rule::unique('tasks')->where('user_id', Auth::id())->whereNull('deleted_at')
+            ],
             'description' => 'nullable|string',
             'due_date'    => ['required', 'date', Rule::date()->todayOrAfter()],
             'priority'    => 'required|string', 
             'attachment'  => 'nullable|file|max:2048',
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
+        ], [
+            // Mensajes formales personalizados para la vista
+            'title.required' => 'El título de la tarea no puede estar vacío ni contener solo espacios.',
+            'title.unique'   => 'Ya tienes una tarea activa con este mismo título.'
         ]);
 
         // 2. Manejo de archivos adjuntos
@@ -121,13 +130,21 @@ class TaskController extends Controller
 
         // 3. Validar los datos que vienen del formulario del modal
         $validated = $request->validate([
-            'title'       => 'required|max:255',
+            'title' => [
+                'required', 
+                'string', 
+                'max:255',
+                Rule::unique('tasks')->where('user_id', Auth::id())->ignore($id)->whereNull('deleted_at')
+            ],
             'description' => 'nullable|string',
             'due_date'    => 'required|date',
             'priority'    => 'required|string', 
             'status'      => 'required|string',
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
+        ], [
+            'title.required' => 'El título de la tarea no puede estar vacío ni contener solo espacios.',
+            'title.unique'   => 'Ya tienes una tarea activa con este mismo título.'
         ]);
 
         // 4. Sobreescribir los datos escalares en la base de datos
@@ -153,20 +170,21 @@ class TaskController extends Controller
 
     public function destroy($id)
     {
-        // 1. Encontrar la tarea (incluso si estuviera "oculta" por SoftDeletes)
-        $task = Task::withTrashed()->findOrFail($id);
+        // 1. Encontrar la tarea (buscamos normalmente, sin withTrashed)
+        $task = Task::findOrFail($id);
 
         // 2. Solo el dueño puede destruirla
         if ($task->user_id !== Auth::id()) {
             abort(403, 'Acceso denegado. No puedes eliminar esta tarea.');
         }
 
-        // 3. Remover permanentemente y liberar espacio en BD
-        $task->forceDelete();
+        // 3. Borrado Lógico (SoftDelete). ¡Desaparece de la vista pero se queda en la BD!
+        $task->delete();
 
-        // 4. Recargar la página con mensaje de confirmación
-        return back()->with('success', '¡Tarea eliminada permanentemente!');
+        // 4. Recargar la página con mensaje de confirmación actualizado
+        return back()->with('success', '¡Tarea eliminada (enviada a la papelera)!');
     }
+    
     public function updateStatusAjax(Request $request, $id)
     {
     $request->validate([
