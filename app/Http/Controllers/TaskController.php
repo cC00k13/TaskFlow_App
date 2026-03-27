@@ -12,38 +12,6 @@ use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
-    public function index(Request $request) // Se añade Request para escuchar los filtros del usuario
-    {
-        // 1. Iniciamos la consulta base (solo tareas de este usuario)
-        $query = Task::with('labels')->where('user_id', Auth::id());
-
-        // 2. Escuchamos la petición de ordenamiento que viene del frontend
-        $orden = $request->input('ordenar_por', 'fecha_proxima'); // Por defecto ordena por la más próxima
-
-        switch ($orden) {
-            case 'mas_recientes':
-                $query->orderBy('created_at', 'desc');
-                break;
-            case 'prioridad_alta':
-                // Nota: Asumiendo que high > medium > low. Puede requerir ajuste según cómo guarden los datos.
-                $query->orderByRaw("CASE WHEN priority = 'high' THEN 1 WHEN priority = 'medium' THEN 2 ELSE 3 END");
-                break;
-            case 'fecha_proxima':
-            default:
-                $query->orderBy('due_date', 'asc');
-                break;
-        }
-
-        // 3. Ejecutamos la consulta para traer las tareas ya ordenadas
-        $tasks = $query->get();
-
-        // 4. Traemos las etiquetas que el usuario ha creado
-        $labels = Label::where('user_id', Auth::id())->get();
-
-        // 5. Mandamos las variables a la vista
-        return view('dashboard', compact('tasks', 'labels')); 
-    }
-
     // Mantenemos el método create original por si lo usas fuera del modal
     public function create(): View 
     {
