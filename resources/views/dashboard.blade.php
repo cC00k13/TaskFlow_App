@@ -6,37 +6,47 @@
     <title>TaskFlow - Mis Tareas</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {{-- NUEVO: Librería SortableJS para Arrastrar y Soltar --}}
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
 <body>
     
-    {{-- Notificación de Éxito --}}
+    {{-- ==========================================
+         FEEDBACK DE ESTADO (NOTIFICACIONES GLOBALES)
+         ========================================== --}}
+    
     @if(session('success'))
-    <div id="toast-exito" class="toast-notification">
+    <div id="toast-exito" class="toast-notification toast-success">
         <i class="fas fa-check-circle"></i> 
         <span>{{ session('success') }}</span>
     </div>
     <script>setTimeout(() => { let t = document.getElementById('toast-exito'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 3500);</script>
     @endif
 
-    {{-- Lógica para separar y ordenar tareas automáticamente --}}
+    @if($errors->any())
+    <div id="toast-error" class="toast-notification toast-error">
+        <i class="fas fa-exclamation-circle"></i> 
+        <span>Por favor, corrige los errores en el formulario.</span>
+    </div>
+    <script>setTimeout(() => { let t = document.getElementById('toast-error'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 4500);</script>
+    @endif
+
+    {{-- Lógica de Tareas (Dividido en 3 estados) --}}
     @php
         $listaTareas = collect($tasks ?? []);
+        $ordenarPorFecha = function($tarea) {
+            return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date;
+        };
 
-        // 1. Tareas Pendientes: Filtradas y ordenadas por fecha más próxima (por defecto)
-        $pendientes = $listaTareas->where('status', '!=', 'completed')
-                                  ->sortBy(function($tarea) {
-                                      // Si no tiene fecha, la mandamos al final (año 9999) para que no estorbe
-                                      return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date;
-                                  });
-
-        // 2. Tareas Completadas
+        $pendientes = $listaTareas->where('status', 'pending')->sortBy($ordenarPorFecha);
+        $enProgreso = $listaTareas->where('status', 'in_progress')->sortBy($ordenarPorFecha);
         $completadas = $listaTareas->where('status', 'completed');
     @endphp
 
     <main class="dashboard-container">
         <div class="dashboard-card">
             
-            {{-- Encabezado --}}
             <header class="header">
                 <div class="brand">
                     <h2>TaskFlow.</h2>
@@ -47,14 +57,13 @@
                     <button class="btn-outline" onclick="abrirModalEtiquetas()">
                         <i class="fas fa-tags"></i> Mis Etiquetas
                     </button>
-                    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+                    <form action="{{ route('logout') }}" method="POST" class="form-inline">
                         @csrf
                         <button type="submit" class="logout-icon" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
                     </form>
                 </div>
             </header>
 
-            {{-- Barra de Controles --}}
             <section class="controls">
                 <div class="search-bar">
                     <i class="fas fa-search search-icon"></i>
@@ -67,8 +76,7 @@
                 <div class="filters-and-summary">
                     <div class="filter-bar">
                         <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
-                        {{-- CONEXIÓN AL BACKEND: Formulario automático para reordenar --}}
-                        <form action="{{ route('dashboard') }}" method="GET" style="display: inline;">
+                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline">
                             <select name="ordenar_por" class="select-ordenar" onchange="this.form.submit()">
                                 <option value="fecha_proxima" {{ request('ordenar_por') == 'fecha_proxima' ? 'selected' : '' }}>Más próximas a vencer</option>
                                 <option value="mas_recientes" {{ request('ordenar_por') == 'mas_recientes' ? 'selected' : '' }}>Más recientes</option>
@@ -76,22 +84,25 @@
                             </select>
                         </form>
                     </div>
-                    
-                    <span class="badge-pending">{{ $pendientes->count() }} Tareas Pendientes</span>
+                    <span class="badge-pending">{{ $pendientes->count() + $enProgreso->count() }} Tareas Activas</span>
                 </div>
             </section>
 
-            {{-- Sección: Tareas Pendientes --}}
+            {{-- ==========================================
+                 SECCIÓN 1: PENDIENTES
+                 ========================================== --}}
             <section class="task-section">
-                <h3 class="section-title">En Curso</h3>
-                <ul class="task-list">
+                <h3 class="section-title">Pendientes</h3>
+                {{-- NUEVO: id para SortableJS y data-status para saber a dónde se soltó --}}
+                <ul class="task-list sortable-list" id="list-pending" data-status="pending" style="min-height: 50px; padding-bottom: 20px;">
                     @forelse($pendientes as $tarea)
-                        <li class="task-item">
-                            {{-- Formulario rápido para completar tarea --}}
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                        <li class="task-item draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
                                 <input type="hidden" name="status" value="completed">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Marcar como completada">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
                             </form>
                             
                             <div class="content" onclick="abrirModalEditar(this)" 
@@ -101,30 +112,24 @@
                                 data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
 
                                 <span class="title">{{ $tarea->title }}</span>
-
                                 <div class="tags">
                                     <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
-                                    
                                     @foreach($tarea->labels ?? [] as $etiqueta)
                                         <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
                                     @endforeach
                                 </div>
-
                                 <div class="task-meta">
                                     @if(!empty($tarea->due_date))
                                         <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
                                             <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
                                     @endif
-                                    @if(!empty($tarea->attachment))
-                                        <span class="meta-file"><i class="fas fa-paperclip"></i> Archivo adjunto</span>
-                                    @endif
                                 </div>
                             </div>
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -132,49 +137,107 @@
                         </li>
                     @empty
                         <div class="empty-state">
-                            <i class="fas fa-check-circle"></i>
-                            <p>¡Todo al día! No tienes tareas pendientes.</p>
+                            <i class="fas fa-list-ul"></i>
+                            <p>No tienes tareas pendientes nuevas.</p>
                         </div>
                     @endforelse
                 </ul>
             </section>
 
-            {{-- Sección: Tareas Completadas --}}
-            @if($completadas->count() > 0)
+            {{-- ==========================================
+                 SECCIÓN 2: EN PROGRESO
+                 ========================================== --}}
+            <section class="task-section mt-4">
+                <h3 class="section-title" style="color: #0284c7; border-color: #0284c7;">En Progreso</h3>
+                <ul class="task-list sortable-list" id="list-in_progress" data-status="in_progress" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($enProgreso as $tarea)
+                        <li class="task-item draggable-item" style="border-left-color: #0284c7;" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
+                                @csrf @method('PATCH') 
+                                <input type="hidden" name="status" value="completed">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
+                            </form>
+                            
+                            <div class="content" onclick="abrirModalEditar(this)" 
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
+
+                                <span class="title">{{ $tarea->title }}</span>
+                                <div class="tags">
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
+                                    @foreach($tarea->labels ?? [] as $etiqueta)
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
+                                    @endforeach
+                                </div>
+                                <div class="task-meta">
+                                    @if(!empty($tarea->due_date))
+                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
+                                            <i class="far fa-clock"></i> {{ $tarea->due_date }}
+                                        </span>
+                                    @endif
+                                </div>
+                            </div>
+                            
+                            <div class="actions">
+                                <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                @csrf @method('DELETE')
+                                    <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </li>
+                    @empty
+                        <div class="empty-state">
+                            <i class="fas fa-spinner"></i>
+                            <p>No tienes tareas en progreso.</p>
+                        </div>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- ==========================================
+                 SECCIÓN 3: COMPLETADAS
+                 ========================================== --}}
             <section class="task-section mt-4">
                 <h3 class="section-title text-muted">Completadas</h3>
-                <ul class="task-list">
-                    @foreach($completadas as $tarea)
-                        <li class="task-item completed">
-                            {{-- Formulario rápido para deshacer tarea completada --}}
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                <ul class="task-list sortable-list" id="list-completed" data-status="completed" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($completadas as $tarea)
+                        <li class="task-item completed draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
                                 <input type="hidden" name="status" value="pending">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Desmarcar">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Devolver a pendientes">
                             </form>
-
                             <div class="content">
                                 <span class="title">{{ $tarea->title }}</span>
                                 <div class="task-meta">
                                     <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
                                 </div>
                             </div>
-                            
                             <div class="actions">
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
                         </li>
-                    @endforeach
+                    @empty
+                        {{-- Espacio para soltar --}}
+                    @endforelse
                 </ul>
             </section>
-            @endif
         </div>
     </main>
 
-    {{-- MODAL PRINCIPAL: Crear / Editar --}}
+    {{-- ==========================================
+         MODAL PRINCIPAL: Crear / Editar Tareas
+         ========================================== --}}
     <div class="modal-overlay" id="task-modal">
         <div class="modal-card">
             <div class="modal-header">
@@ -196,13 +259,24 @@
                     <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
                 </div>
 
+                {{-- SELECTOR VISUAL DE ETIQUETAS --}}
                 <div class="input-group">
-                    <label class="input-label">ETIQUETAS <small>(Ctrl + Clic para varias)</small></label>
-                    <select name="labels[]" id="input-etiquetas" multiple class="modern-input select-multiple">
-                        @foreach($labels ?? [] as $etiqueta)
-                            <option value="{{ $etiqueta->id }}">{{ $etiqueta->name }}</option>
-                        @endforeach
-                    </select>
+                    <label class="input-label">CATEGORÍAS / ETIQUETAS</label>
+                    <div class="labels-grid-selector">
+                        @forelse($labels ?? [] as $etiqueta)
+                            <label class="label-checkbox-wrapper" title="{{ $etiqueta->name }}">
+                                <input type="checkbox" name="labels[]" value="{{ $etiqueta->id }}" class="label-checkbox-input">
+                                <span class="label-pill" style="--tag-color: {{ $etiqueta->color }};">
+                                    <span class="color-dot" style="background-color: {{ $etiqueta->color }};"></span>
+                                    <span class="tag-name-text">{{ $etiqueta->name }}</span>
+                                </span>
+                            </label>
+                        @empty
+                            <p class="empty-labels-msg">
+                                <i class="fas fa-info-circle"></i> No tienes etiquetas. Crea una desde "Mis Etiquetas".
+                            </p>
+                        @endforelse
+                    </div>
                 </div>
 
                 <div class="modal-row">
@@ -221,8 +295,8 @@
                         <label class="input-label">PRIORIDAD</label>
                         <select name="priority" id="input-prioridad" class="modern-input">
                             <option value="low">Baja</option>
-                            <option value="medium">Media</option>
-                            <option value="high" selected>Alta</option>
+                            <option value="medium" selected>Media</option>
+                            <option value="high">Alta</option>
                         </select>
                     </div>
                     <div class="input-group half">
@@ -248,52 +322,233 @@
         </div>
     </div>
 
-    {{-- MODAL SECUNDARIO: Etiquetas --}}
+    {{-- ==========================================
+         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
+         ========================================== --}}
     <div class="modal-overlay" id="label-modal">
-        <div class="modal-card modal-sm">
+        <div class="modal-card modal-sm label-modal-card">
             <div class="modal-header">
-                <h2>Mis Etiquetas</h2>
+                <h2 id="modal-titulo-etiqueta">Mis Etiquetas</h2>
                 <button class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            <form action="{{ url('/label/create') }}" method="POST" class="tag-form">
+            <form action="{{ url('/label/create') }}" method="POST" class="tag-form" id="form-etiqueta">
                 @csrf
-                <div class="modal-row">
-                    <div class="input-group half">
+                <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
+                
+                <div class="modal-row gap-10">
+                    <div class="input-group flex-1">
                         <label class="input-label">NOMBRE</label>
-                        <input type="text" name="nombre" required class="modern-input" placeholder="Ej. Proyecto">
+                        <input type="text" name="nombre" id="input-nombre-etiqueta" required 
+                               class="modern-input @error('nombre') is-invalid @enderror" 
+                               placeholder="Ej. Proyecto" value="{{ old('nombre') }}">
+                               
+                        @error('nombre')
+                            <span class="validation-error">
+                                <i class="fas fa-info-circle"></i> {{ $message }}
+                            </span>
+                        @enderror
                     </div>
-                    <div class="input-group half">
+                    <div class="input-group color-input-group">
                         <label class="input-label">COLOR</label>
-                        <input type="color" name="color" value="#2563eb" class="color-picker">
+                        <input type="color" name="color" id="input-color-etiqueta" 
+                               value="{{ old('color', '#2563eb') }}" class="modern-input color-picker-input">
+                               
+                        @error('color')
+                            <span class="validation-error">
+                                {{ $message }}
+                            </span>
+                        @enderror
                     </div>
                 </div>
-                <button type="submit" class="btn-primary w-100">Crear Nueva</button>
+                
+                <button type="submit" class="btn-primary btn-full mt-10" id="btn-submit-etiqueta">Crear Nueva</button>
+                <button type="button" class="btn-text btn-full mt-10 text-center hide" id="btn-cancelar-etiqueta" onclick="resetearFormularioEtiquetas()">Cancelar Edición</button>
             </form>
 
-            <div class="tag-manager">
-                <label class="input-label">ETIQUETAS ACTUALES</label>
+            <div class="tag-manager-wrapper">
+                <label class="input-label manager-title">ETIQUETAS ACTUALES</label>
                 <ul class="tag-list-manager">
                     @forelse($labels ?? [] as $etiqueta)
                         <li class="tag-item-manager" style="border-left-color: {{ $etiqueta->color }};">
-                            <span>{{ $etiqueta->name }}</span>
-                            <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn-icon delete-tag"><i class="fas fa-trash"></i></button>
-                            </form>
+                            
+                            <div class="tag-info-display">
+                                <div class="color-indicator" style="background-color: {{ $etiqueta->color }};"></div>
+                                <span class="tag-text">{{ $etiqueta->name }}</span>
+                            </div>
+                            
+                            <div class="actions">
+                                <button type="button" class="btn-icon edit" title="Editar" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                
+                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" class="form-inline" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
                         </li>
                     @empty
-                        <p class="text-muted text-center"><small>No hay etiquetas creadas.</small></p>
+                        <p class="empty-labels-text">No hay etiquetas creadas.</p>
                     @endforelse
                 </ul>
             </div>
         </div>
     </div>
 
+    {{-- ==========================================
+         SCRIPTS GLOBALES
+         ========================================== --}}
     <script>
+        const FECHA_HOY = "{{ date('Y-m-d') }}";
+
+        // ==========================================
+        // NUEVO: Lógica Drag and Drop (Arrastrar)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Inicializar las 3 listas como arrastrables y conectadas entre sí
+            const sortableOptions = {
+                group: 'tareas', // Permite arrastrar entre diferentes listas
+                animation: 150,  // Efecto visual suave
+                handle: '.drag-handle', // Solo se arrastra desde el icono de los puntitos
+                ghostClass: 'sortable-ghost', // Clase CSS mientras se arrastra
+                
+                // Función que se ejecuta cuando sueltas una tarea en otra lista
+                onEnd: function (evt) {
+                    const itemEl = evt.item;  // El elemento <li> que arrastramos
+                    const toList = evt.to;    // La lista <ul> donde lo soltamos
+                    
+                    const taskId = itemEl.getAttribute('data-id');
+                    const newStatus = toList.getAttribute('data-status');
+                    
+                    // Si se soltó en la misma lista, solo reordenamos
+                    // Quitamos el "return;" para que, incluso si la sueltas en la misma lista, se auto-acomode por fecha.
+
+                    // 1. Capturamos los elementos internos de la tarjeta
+                    const checkbox = itemEl.querySelector('.task-check');
+                    const hiddenInput = itemEl.querySelector('input[name="status"]'); 
+                    const contentDiv = itemEl.querySelector('.content'); 
+
+                    // 2. Actualizamos el dato oculto para el Modal de Edición
+                    if(contentDiv) {
+                        contentDiv.setAttribute('data-estado', newStatus);
+                    }
+
+                    // 3. Cambiamos los estilos según la columna
+                    if (newStatus === 'completed') {
+                        itemEl.classList.add('completed');
+                        itemEl.style.borderLeftColor = ''; 
+                        if(checkbox) { checkbox.checked = true; checkbox.title = "Devolver a pendientes"; }
+                        if(hiddenInput) hiddenInput.value = 'pending'; 
+                    } else {
+                        itemEl.classList.remove('completed');
+                        if (newStatus === 'in_progress') {
+                            itemEl.style.borderLeftColor = '#0284c7'; // Azul
+                        } else {
+                            itemEl.style.borderLeftColor = ''; // Default
+                        }
+                        if(checkbox) { checkbox.checked = false; checkbox.title = "Marcar como completada"; }
+                        if(hiddenInput) hiddenInput.value = 'completed';
+                    }
+
+                    // ==========================================
+                    // 4. NUEVO: ORDENAMIENTO AUTOMÁTICO POR FECHA
+                    // ==========================================
+                    // Convertimos todos los <li> de la lista destino en un arreglo para poder ordenarlos
+                    const itemsEnLista = Array.from(toList.querySelectorAll('.task-item'));
+                    
+                    itemsEnLista.sort((a, b) => {
+                        const contentA = a.querySelector('.content');
+                        const contentB = b.querySelector('.content');
+                        
+                        // Extraemos las fechas
+                        let fechaA = contentA ? contentA.getAttribute('data-fecha_limite') : '';
+                        let fechaB = contentB ? contentB.getAttribute('data-fecha_limite') : '';
+                        
+                        // Si no tienen fecha, les asignamos una en el año 9999 para que se vayan al fondo
+                        if (!fechaA) fechaA = '9999-12-31';
+                        if (!fechaB) fechaB = '9999-12-31';
+                        
+                        // Comparamos las fechas (las más próximas primero)
+                        return fechaA.localeCompare(fechaB);
+                    });
+
+                    // Volvemos a inyectar los <li> en el <ul> en el orden correcto
+                    // (El navegador los moverá visualmente de forma instantánea)
+                    itemsEnLista.forEach(item => toList.appendChild(item));
+                    // ==========================================
+
+                    // 5. Petición AJAX (Fetch) al backend para guardar en BD (Solo si cambió de lista)
+                    if (evt.from !== toList) {
+                        fetch(`/tareas/${taskId}/estado-ajax`, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                            },
+                            body: JSON.stringify({ status: newStatus })
+                        })
+                        .then(response => {
+                            if(!response.ok) throw new Error('Error al actualizar');
+                        })
+                        .catch(error => {
+                            console.error('Fallo al actualizar estado:', error);
+                        });
+                    }
+                }
+            };
+
+            // Aplicar Sortable a las tres listas
+            new Sortable(document.getElementById('list-pending'), sortableOptions);
+            new Sortable(document.getElementById('list-in_progress'), sortableOptions);
+            new Sortable(document.getElementById('list-completed'), sortableOptions);
+        });
+
+        // ==========================================
+        // Funciones de Modales Originales
+        // ==========================================
         function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
-        function abrirModalEtiquetas() { document.getElementById('label-modal').style.display = 'flex'; }
         
+        // --- Lógica Modal Etiquetas ---
+        function abrirModalEtiquetas() { 
+            @if(!$errors->has('nombre') && !$errors->has('color'))
+                resetearFormularioEtiquetas();
+            @endif
+            document.getElementById('label-modal').style.display = 'flex'; 
+        }
+
+        @if($errors->has('nombre') || $errors->has('color'))
+            document.addEventListener("DOMContentLoaded", function() {
+                document.getElementById('label-modal').style.display = 'flex';
+            });
+        @endif
+        
+        function editarEtiqueta(id, nombre, color) {
+            document.getElementById('modal-titulo-etiqueta').innerText = 'Editar Etiqueta';
+            document.getElementById('form-etiqueta').action = '/labels/' + id;
+            document.getElementById('metodo-etiqueta').value = 'PUT';
+            document.getElementById('input-nombre-etiqueta').value = nombre;
+            document.getElementById('input-color-etiqueta').value = color;
+            document.getElementById('btn-submit-etiqueta').innerText = 'Guardar Cambios';
+            document.getElementById('btn-cancelar-etiqueta').classList.remove('hide');
+            document.getElementById('input-nombre-etiqueta').focus();
+        }
+
+        function resetearFormularioEtiquetas() {
+            const form = document.getElementById('form-etiqueta');
+            document.getElementById('modal-titulo-etiqueta').innerText = 'Mis Etiquetas';
+            form.action = '{{ url('/label/create') }}';
+            document.getElementById('metodo-etiqueta').value = 'POST';
+            form.reset();
+            
+            const inputName = document.getElementById('input-nombre-etiqueta');
+            if(inputName) inputName.classList.remove('is-invalid');
+
+            document.getElementById('btn-submit-etiqueta').innerText = 'Crear Nueva';
+            document.getElementById('btn-cancelar-etiqueta').classList.add('hide');
+        }
+
+        // --- Lógica Modal Tareas ---
         function abrirModalNuevaTarea() {
             const form = document.getElementById('form-tarea');
             document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
@@ -301,10 +556,12 @@
             document.getElementById('metodo-formulario').value = 'POST';
             form.reset();
             
-            document.getElementById('input-estado').value = 'pending'; // Corregido al inglés para el backend
+            document.getElementById('input-estado').value = 'pending';
             document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
             
-            Array.from(document.getElementById('input-etiquetas').options).forEach(opt => opt.selected = false);
+            document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
+
+            document.querySelectorAll('.label-checkbox-input').forEach(cb => cb.checked = false);
             document.getElementById('task-modal').style.display = 'flex';
         }
 
@@ -313,19 +570,33 @@
             document.getElementById('form-tarea').action = '/task/' + elemento.getAttribute('data-id');
             document.getElementById('metodo-formulario').value = 'PUT';
             
+            let fechaLimite = elemento.getAttribute('data-fecha_limite');
+
             document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
             document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
-            document.getElementById('input-fecha').value = elemento.getAttribute('data-fecha_limite');
+            document.getElementById('input-fecha').value = fechaLimite;
             document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
             document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
             
+            if (fechaLimite && fechaLimite < FECHA_HOY) {
+                document.getElementById('input-fecha').setAttribute('min', fechaLimite);
+            } else {
+                document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
+            }
+
             let etiquetas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
-            Array.from(document.getElementById('input-etiquetas').options).forEach(opt => {
-                opt.selected = etiquetas.includes(parseInt(opt.value));
+            document.querySelectorAll('.label-checkbox-input').forEach(checkbox => {
+                checkbox.checked = etiquetas.includes(parseInt(checkbox.value));
             });
 
             document.getElementById('btn-submit-tarea').innerText = 'Actualizar Cambios';
             document.getElementById('task-modal').style.display = 'flex';
+        }
+
+        window.onclick = function(event) {
+            if (event.target.className === 'modal-overlay') {
+                event.target.style.display = 'none';
+            }
         }
     </script>
 </body>

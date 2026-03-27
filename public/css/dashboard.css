@@ -31,6 +31,17 @@ body {
 }
 
 /* =========================================
+   Utilidades Generales
+   ========================================= */
+.form-inline { display: inline; margin: 0; }
+.hide { display: none !important; }
+.flex-1 { flex: 1; }
+.gap-10 { display: flex; gap: 10px; }
+.mt-10 { margin-top: 10px; }
+.btn-full { width: 100%; }
+.text-center { text-align: center; }
+
+/* =========================================
    Contenedor Principal
    ========================================= */
 .dashboard-container {
@@ -201,6 +212,7 @@ body {
     font-weight: 600;
     cursor: pointer;
     padding: 10px 15px;
+    transition: 0.2s;
 }
 
 .btn-text:hover {
@@ -220,7 +232,6 @@ body {
     color: var(--primary);
 }
 
-/* --- NUEVO: Botón Danger (Para el modal de eliminar) --- */
 .btn-danger {
     background: #ef4444;
     color: white;
@@ -304,97 +315,6 @@ body {
     margin-top: 3px;
 }
 
-/* --- NUEVO: Checkbox Interactivo y Satisfactorio --- */
-.satisfying-checkbox {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    position: relative;
-    user-select: none;
-    padding: 5px;
-}
-
-.satisfying-checkbox input {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
-    height: 0;
-    width: 0;
-}
-
-.satisfying-checkbox .checkmark {
-    position: relative;
-    height: 26px;
-    width: 26px;
-    background-color: #f3f4f6;
-    border: 2px solid #d1d5db;
-    border-radius: 8px;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: var(--shadow-sm);
-}
-
-.satisfying-checkbox:hover input ~ .checkmark {
-    border-color: var(--primary);
-    background-color: #eff6ff;
-}
-
-.satisfying-checkbox:active .checkmark {
-    transform: scale(0.85);
-}
-
-.satisfying-checkbox input:checked ~ .checkmark {
-    background-color: #10b981;
-    border-color: #10b981;
-    transform: scale(1.1);
-    animation: pulse-success 0.4s ease-out forwards;
-}
-
-.satisfying-checkbox .checkmark:after {
-    content: "";
-    position: absolute;
-    display: none;
-    left: 8px;
-    top: 3px;
-    width: 6px;
-    height: 12px;
-    border: solid white;
-    border-width: 0 3px 3px 0;
-    transform: rotate(45deg);
-}
-
-.satisfying-checkbox input:checked ~ .checkmark:after {
-    display: block;
-    animation: draw-check 0.3s ease-in-out forwards;
-}
-
-@keyframes draw-check {
-    0% {
-        height: 0;
-        width: 0;
-        opacity: 0;
-    }
-    100% {
-        height: 12px;
-        width: 6px;
-        opacity: 1;
-    }
-}
-
-@keyframes pulse-success {
-    0% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
-        transform: scale(0.9);
-    }
-    50% {
-        transform: scale(1.1);
-    }
-    100% {
-        box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
-        transform: scale(1);
-    }
-}
-
 /* Contenido de Tarea y Metadatos */
 .content {
     flex: 1;
@@ -429,23 +349,9 @@ body {
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-.priority-alta {
-    background: #fee2e2;
-    color: #dc2626;
-    border: 1px solid #fca5a5;
-}
-
-.priority-media {
-    background: #fef3c7;
-    color: #d97706;
-    border: 1px solid #fcd34d;
-}
-
-.priority-baja {
-    background: #e0f2fe;
-    color: #0284c7;
-    border: 1px solid #bae6fd;
-}
+.priority-alta { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.priority-media { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+.priority-baja { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
 
 .task-meta {
     font-size: 0.8rem;
@@ -479,7 +385,7 @@ body {
     opacity: 1;
 }
 
-/* Botones de Acción Internos */
+/* Botones de Acción Internos (Compartido Tareas y Etiquetas) */
 .actions {
     display: flex;
     gap: 5px;
@@ -487,7 +393,8 @@ body {
     transition: 0.2s;
 }
 
-.task-item:hover .actions {
+.task-item:hover .actions,
+.tag-item-manager:hover .actions {
     opacity: 1;
 }
 
@@ -505,15 +412,8 @@ body {
     justify-content: center;
 }
 
-.btn-icon.edit:hover {
-    background: #e0f2fe;
-    color: #0284c7;
-}
-
-.btn-icon.delete:hover {
-    background: #fee2e2;
-    color: #dc2626;
-}
+.btn-icon.edit:hover { background: #e0f2fe; color: #0284c7; }
+.btn-icon.delete:hover { background: #fee2e2; color: #dc2626; }
 
 /* Estado Vacío */
 .empty-state {
@@ -537,10 +437,7 @@ body {
    ========================================= */
 .modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(4px);
     display: none;
@@ -558,21 +455,15 @@ body {
     box-shadow: 0 25px 50px rgba(0,0,0,0.25);
     animation: scaleIn 0.2s ease-out;
     border: 1px solid var(--border);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-.modal-sm {
-    max-width: 450px;
-}
+.modal-sm { max-width: 450px; }
 
 @keyframes scaleIn {
-    from {
-        transform: scale(0.95);
-        opacity: 0;
-    }
-    to {
-        transform: scale(1);
-        opacity: 1;
-    }
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
 }
 
 .modal-header {
@@ -602,21 +493,11 @@ body {
     transform: rotate(90deg);
 }
 
-/* --- NUEVO: Texto para el cuerpo de modales (como el de eliminar) --- */
-.modal-body {
-    margin-bottom: 20px;
-}
-
-.modal-body p {
-    color: var(--text-muted);
-    line-height: 1.5;
-    font-size: 0.95rem;
-}
+.modal-body { margin-bottom: 20px; }
+.modal-body p { color: var(--text-muted); line-height: 1.5; font-size: 0.95rem; }
 
 /* Formularios Modales */
-.input-group {
-    margin-bottom: 20px;
-}
+.input-group { margin-bottom: 20px; }
 
 .input-label {
     display: block;
@@ -666,19 +547,6 @@ textarea.modern-input {
     margin-bottom: 0;
 }
 
-/* Selector Múltiple y Archivos */
-.select-multiple {
-    height: auto;
-    min-height: 90px;
-    padding: 5px;
-}
-
-.select-multiple option {
-    padding: 8px;
-    margin-bottom: 2px;
-    border-radius: 4px;
-}
-
 .file-input::file-selector-button {
     background: #f1f5f9;
     color: var(--text-main);
@@ -692,9 +560,7 @@ textarea.modern-input {
     transition: 0.2s;
 }
 
-.file-input::file-selector-button:hover {
-    background: #e2e8f0;
-}
+.file-input::file-selector-button:hover { background: #e2e8f0; }
 
 .form-actions {
     display: flex;
@@ -705,7 +571,76 @@ textarea.modern-input {
     padding-top: 20px;
 }
 
-/* Gestor de Etiquetas */
+/* =========================================
+   Validaciones de Estado (Errores)
+   ========================================= */
+.is-invalid {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+}
+.validation-error {
+    color: #dc2626;
+    font-size: 0.8rem;
+    margin-top: 5px;
+    display: block;
+}
+
+/* =========================================
+   Selector Visual de Etiquetas (Píldoras)
+   ========================================= */
+.labels-grid-selector {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+.label-checkbox-wrapper { 
+    cursor: pointer; 
+    user-select: none; 
+}
+.label-checkbox-input { 
+    display: none; 
+}
+.label-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+.label-pill .color-dot { 
+    width: 10px; 
+    height: 10px; 
+    border-radius: 50%; 
+}
+.label-checkbox-wrapper:hover .label-pill {
+    border-color: var(--tag-color);
+    box-shadow: var(--shadow-sm);
+}
+.label-checkbox-input:checked + .label-pill {
+    background-color: var(--tag-color);
+    border-color: var(--tag-color);
+    color: #ffffff;
+    font-weight: 600;
+}
+.label-checkbox-input:checked + .label-pill .color-dot {
+    border: 2px solid rgba(255, 255, 255, 0.9);
+}
+.empty-labels-msg { color: var(--text-muted); font-size: 0.85rem; padding: 10px; width: 100%; }
+
+/* =========================================
+   Gestor de Etiquetas (CRUD)
+   ========================================= */
 .tag-form {
     background: #f8fafc;
     padding: 20px;
@@ -714,25 +649,28 @@ textarea.modern-input {
     border: 1px solid var(--border);
 }
 
-.color-picker {
-    width: 100%;
+.label-modal-card { max-width: 400px; }
+.color-input-group { width: 80px; }
+
+.color-picker-input {
     height: 42px;
     padding: 2px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
+    width: 100%;
     cursor: pointer;
 }
 
-.w-100 {
-    width: 100%;
-}
+.tag-manager-wrapper { margin-top: 20px; }
 
-.tag-manager {
-    margin-top: 20px;
+.manager-title {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: bold;
 }
 
 .tag-list-manager {
     list-style: none;
+    padding: 0;
+    margin-top: 10px;
     max-height: 200px;
     overflow-y: auto;
     padding-right: 5px;
@@ -742,20 +680,40 @@ textarea.modern-input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 15px;
     background: #fff;
+    padding: 12px 15px;
     border: 1px solid var(--border);
     border-radius: 8px;
     margin-bottom: 8px;
     font-weight: 500;
-    border-left-width: 4px;
+    border-left-width: 5px;
+    border-left-style: solid;
 }
 
-.delete-tag:hover {
-    color: #dc2626;
+.tag-info-display {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.color-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.tag-text {
+    font-weight: 500;
+    color: var(--text-main);
+}
+.empty-labels-text {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    padding: 10px;
 }
 
-/* Toast Notification */
+/* =========================================
+   Notificaciones Flotantes (Toasts)
+   ========================================= */
 .toast-notification {
     position: fixed;
     bottom: 30px;
@@ -769,54 +727,81 @@ textarea.modern-input {
     align-items: center;
     gap: 12px;
     font-weight: 500;
-    border-left: 4px solid #10b981;
     z-index: 9999;
     transition: opacity 0.5s;
     border: 1px solid var(--border);
 }
 
-.toast-notification i {
+.toast-success {
+    border-left: 4px solid #10b981;
+}
+
+.toast-success i {
     color: #10b981;
     font-size: 1.2rem;
+}
+
+.toast-error {
+    background: #fee2e2;
+    color: #991b1b;
+    border-left: 4px solid #dc2626;
+    border-top: none; border-right: none; border-bottom: none;
+}
+
+.toast-error i {
+    color: #dc2626;
+    font-size: 1.2rem;
+}
+
+/* =========================================
+   NUEVO: Estilos para Arrastrar y Soltar (Drag & Drop)
+   ========================================= */
+.draggable-item {
+    position: relative;
+}
+
+.drag-handle {
+    cursor: grab;
+    color: #cbd5e1;
+    padding: 10px 10px 10px 0;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.drag-handle:hover, .drag-handle:active {
+    color: #94a3b8;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Efecto visual mientras arrastras la tarjeta */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #e2e8f0 !important;
+    border: 1px dashed #94a3b8 !important;
+}
+
+/* Para que la lista vacía siga teniendo espacio donde soltar */
+.sortable-list {
+    min-height: 50px;
+    padding-bottom: 20px;
 }
 
 /* =========================================
    Responsive Design
    ========================================= */
 @media (max-width: 768px) {
-    .dashboard-card {
-        padding: 25px 20px;
-    }
-
-    .header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 15px;
-    }
-
-    .controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .search-bar {
-        min-width: 100%;
-    }
-
-    .filters-and-summary {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 15px;
-    }
-
-    .filter-bar {
-        justify-content: space-between;
-    }
-
-    .task-item {
-        flex-direction: column;
-    }
-
+    .dashboard-card { padding: 25px 20px; }
+    .header { flex-direction: column; align-items: flex-start; gap: 15px; }
+    .controls { flex-direction: column; align-items: stretch; }
+    .search-bar { min-width: 100%; }
+    .filters-and-summary { flex-direction: column; align-items: stretch; gap: 15px; }
+    .filter-bar { justify-content: space-between; }
+    .task-item { flex-direction: column; }
     .actions {
         opacity: 1;
         width: 100%;
@@ -825,14 +810,6 @@ textarea.modern-input {
         border-top: 1px solid var(--border);
         padding-top: 10px;
     }
-
-    .modal-card {
-        padding: 25px 20px;
-        margin: 15px;
-    }
-
-    .modal-row {
-        flex-direction: column;
-        gap: 15px;
-    }
+    .modal-card { padding: 25px 20px; margin: 15px; }
+    .modal-row { flex-direction: column; gap: 15px; }
 }

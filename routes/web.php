@@ -136,4 +136,5 @@ Route::middleware('auth')->group(function () {
         return back()->with('success', '¡Etiqueta eliminada!');
     });
 
+        Route::patch('/tareas/{id}/estado-ajax', [TaskController::class, 'updateStatusAjax']);
 });
