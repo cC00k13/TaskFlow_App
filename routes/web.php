@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\TagController;
 
 // 1. LA ENTRADA: Siempre empezamos en el Login
 Route::get('/', function () {
@@ -55,3 +56,7 @@ Route::post('/task/create', [TaskController::class, 'store']);
 
 //ruta para la edicion de tareas
 Route::resource('tasks', TaskController::class);
+
+Route::middleware(['auth'])->group(function () {
+    Route::resource('tags', TagController::class)->except(['show']);
+});
