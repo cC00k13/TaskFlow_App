@@ -129,7 +129,7 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -184,7 +184,7 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -221,7 +221,7 @@
                                 </div>
                             </div>
                             <div class="actions">
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -251,7 +251,16 @@
                 
                 <div class="input-group">
                     <label class="input-label">TÍTULO</label>
-                    <input type="text" name="title" id="input-titulo" required class="modern-input" placeholder="Ej. Estudiar para el examen...">
+                    <input type="text" name="title" id="input-titulo" required 
+                           class="modern-input @error('title') is-invalid @enderror" 
+                           placeholder="Ej. Estudiar para el examen..." value="{{ old('title') }}">
+                           
+                    {{-- Alerta formal de error (Gancho para la diseñadora) --}}
+                    @error('title')
+                        <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block; font-weight: 500;">
+                            <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                        </span>
+                    @enderror
                 </div>
                 
                 <div class="input-group">
@@ -341,8 +350,14 @@
                         <label class="input-label">NOMBRE</label>
                         <input type="text" name="nombre" id="input-nombre-etiqueta" required 
                                class="modern-input @error('nombre') is-invalid @enderror" 
-                               placeholder="Ej. Proyecto" value="{{ old('nombre') }}">
+                               placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30">
                                
+                        {{-- Contenedor del contador listo para que diseño lo estilice --}}
+                        <div style="display: flex; justify-content: space-between; margin-top: 4px;">
+                            <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; font-weight: 500;">Límite de caracteres alcanzado</small>
+                            <small id="contador-etiqueta" style="color: #6b7280; font-size: 0.75rem; margin-left: auto;">0/30</small>
+                        </div>
+
                         @error('nombre')
                             <span class="validation-error">
                                 <i class="fas fa-info-circle"></i> {{ $message }}
@@ -401,6 +416,37 @@
          ========================================== --}}
     <script>
         const FECHA_HOY = "{{ date('Y-m-d') }}";
+// ==========================================
+        // NUEVO: Lógica de Contador de Caracteres (Etiquetas)
+        // ==========================================
+        document.addEventListener('DOMContentLoaded', function() {
+            const inputNombre = document.getElementById('input-nombre-etiqueta');
+            const contador = document.getElementById('contador-etiqueta');
+            const mensajeLimite = document.getElementById('mensaje-limite-etiqueta');
+            const limite = 30;
+
+            if(inputNombre) {
+                // Función para actualizar el contador
+                const actualizarContador = () => {
+                    const longitudActual = inputNombre.value.length;
+                    contador.innerText = `${longitudActual}/${limite}`;
+
+                    if (longitudActual >= limite) {
+                        contador.style.color = '#ef4444'; 
+                        mensajeLimite.style.display = 'block';
+                    } else {
+                        contador.style.color = '#6b7280'; 
+                        mensajeLimite.style.display = 'none';
+                    }
+                };
+
+                // Escuchar cuando el usuario escribe
+                inputNombre.addEventListener('input', actualizarContador);
+                
+                // Ejecutar una vez al abrir para inicializar si ya hay texto (ej. al editar)
+                actualizarContador(); 
+            }
+        });
 
         // ==========================================
         // NUEVO: Lógica Drag and Drop (Arrastrar)
@@ -520,6 +566,13 @@
         @if($errors->has('nombre') || $errors->has('color'))
             document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('label-modal').style.display = 'flex';
+            });
+        @endif
+        
+        // Mantener abierto el modal de Tareas si el título falla la validación
+        @if($errors->has('title'))
+            document.addEventListener("DOMContentLoaded", function() {
+                document.getElementById('task-modal').style.display = 'flex';
             });
         @endif
         
