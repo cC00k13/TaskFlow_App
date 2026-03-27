@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\LabelController;
 use App\Models\User;
 use App\Models\Label;
 
@@ -99,6 +100,8 @@ Route::middleware('auth')->group(function () {
     // Cambiar Estado (Pendiente <-> Completada)
     Route::patch('/tareas/{id}/estado', [TaskController::class, 'toggleStatus'])->name('task.toggleStatus');
 
+    // Cambiar Estado vía AJAX (Drag and Drop) - Movido a su lugar correcto
+    Route::patch('/tareas/{id}/estado-ajax', [TaskController::class, 'updateStatusAjax']);
 });
 
 
@@ -106,35 +109,8 @@ Route::middleware('auth')->group(function () {
    4. ETIQUETAS (Labels)
    ========================================= */
 Route::middleware('auth')->group(function () {
-
-    // Crear nueva etiqueta
-    Route::post('/label/create', function (Request $request) {
-        $request->validate([
-            'nombre' => 'required|string|max:50',
-            'color'  => 'required|string'
-        ]);
-
-        Label::create([
-            'user_id' => Auth::id(),
-            'name'    => $request->nombre,
-            'color'   => $request->color,
-        ]);
-
-        return back()->with('success', '¡Etiqueta creada exitosamente!');
-    });
-
-    // Eliminar etiqueta (¡ESTA ES LA RUTA QUE FALTABA!)
-    Route::delete('/labels/{id}', function ($id) {
-        $label = Label::findOrFail($id);
-
-        // Seguridad: Solo el dueño puede borrar su etiqueta
-        if ($label->user_id !== Auth::id()) {
-            abort(403, 'No puedes eliminar esta etiqueta.');
-        }
-
-        $label->delete();
-        return back()->with('success', '¡Etiqueta eliminada!');
-    });
-
-        Route::patch('/tareas/{id}/estado-ajax', [TaskController::class, 'updateStatusAjax']);
+    // CRUD completo apuntando al LabelController
+    Route::post('/label/create', [LabelController::class, 'store'])->name('labels.store');
+    Route::put('/labels/{id}', [LabelController::class, 'update'])->name('labels.update');
+    Route::delete('/labels/{id}', [LabelController::class, 'destroy'])->name('labels.destroy');
 });

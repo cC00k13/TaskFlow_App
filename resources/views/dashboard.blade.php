@@ -6,7 +6,7 @@
     <title>TaskFlow - Mis Tareas</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    {{-- NUEVO: Librería SortableJS para Arrastrar y Soltar --}}
+    {{-- Librería SortableJS para Arrastrar y Soltar --}}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
@@ -25,7 +25,7 @@
     @endif
 
     @if($errors->any())
-    <div id="toast-error" class="toast-notification toast-error">
+    <div id="toast-error" class="toast-notification toast-error" style="background-color: #ef4444; color: white; border-left-color: #b91c1c;">
         <i class="fas fa-exclamation-circle"></i> 
         <span>Por favor, corrige los errores en el formulario.</span>
     </div>
@@ -57,7 +57,7 @@
                     <button class="btn-outline" onclick="abrirModalEtiquetas()">
                         <i class="fas fa-tags"></i> Mis Etiquetas
                     </button>
-                    <form action="{{ route('logout') }}" method="POST" class="form-inline">
+                    <form action="{{ route('logout') }}" method="POST" class="form-inline" style="display: inline;">
                         @csrf
                         <button type="submit" class="logout-icon" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
                     </form>
@@ -76,7 +76,7 @@
                 <div class="filters-and-summary">
                     <div class="filter-bar">
                         <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
-                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline">
+                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline" style="display: inline;">
                             <select name="ordenar_por" class="select-ordenar" onchange="this.form.submit()">
                                 <option value="fecha_proxima" {{ request('ordenar_por') == 'fecha_proxima' ? 'selected' : '' }}>Más próximas a vencer</option>
                                 <option value="mas_recientes" {{ request('ordenar_por') == 'mas_recientes' ? 'selected' : '' }}>Más recientes</option>
@@ -93,7 +93,6 @@
                  ========================================== --}}
             <section class="task-section">
                 <h3 class="section-title">Pendientes</h3>
-                {{-- NUEVO: id para SortableJS y data-status para saber a dónde se soltó --}}
                 <ul class="task-list sortable-list" id="list-pending" data-status="pending" style="min-height: 50px; padding-bottom: 20px;">
                     @forelse($pendientes as $tarea)
                         <li class="task-item draggable-item" data-id="{{ $tarea->id }}">
@@ -115,7 +114,7 @@
                                 <div class="tags">
                                     <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
                                     @foreach($tarea->labels ?? [] as $etiqueta)
-                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
                                     @endforeach
                                 </div>
                                 <div class="task-meta">
@@ -170,7 +169,7 @@
                                 <div class="tags">
                                     <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
                                     @foreach($tarea->labels ?? [] as $etiqueta)
-                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->name }}</span>
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
                                     @endforeach
                                 </div>
                                 <div class="task-meta">
@@ -228,7 +227,6 @@
                             </div>
                         </li>
                     @empty
-                        {{-- Espacio para soltar --}}
                     @endforelse
                 </ul>
             </section>
@@ -255,7 +253,6 @@
                            class="modern-input @error('title') is-invalid @enderror" 
                            placeholder="Ej. Estudiar para el examen..." value="{{ old('title') }}">
                            
-                    {{-- Alerta formal de error (Gancho para la diseñadora) --}}
                     @error('title')
                         <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block; font-weight: 500;">
                             <i class="fas fa-exclamation-circle"></i> {{ $message }}
@@ -268,7 +265,6 @@
                     <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
                 </div>
 
-                {{-- SELECTOR VISUAL DE ETIQUETAS --}}
                 <div class="input-group">
                     <label class="input-label">CATEGORÍAS / ETIQUETAS</label>
                     <div class="labels-grid-selector">
@@ -332,7 +328,7 @@
     </div>
 
     {{-- ==========================================
-         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
+         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS (UI MEJORADA)
          ========================================== --}}
     <div class="modal-overlay" id="label-modal">
         <div class="modal-card modal-sm label-modal-card">
@@ -345,66 +341,79 @@
                 @csrf
                 <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
                 
-                <div class="modal-row gap-10">
-                    <div class="input-group flex-1">
-                        <label class="input-label">NOMBRE</label>
-                        <input type="text" name="nombre" id="input-nombre-etiqueta" required 
-                               class="modern-input @error('nombre') is-invalid @enderror" 
-                               placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30">
-                               
-                        {{-- Contenedor del contador listo para que diseño lo estilice --}}
-                        <div style="display: flex; justify-content: space-between; margin-top: 4px;">
-                            <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; font-weight: 500;">Límite de caracteres alcanzado</small>
-                            <small id="contador-etiqueta" style="color: #6b7280; font-size: 0.75rem; margin-left: auto;">0/30</small>
+                {{-- Contenedor Flex alineado desde arriba --}}
+                <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px;">
+                    
+                    {{-- Grupo NOMBRE --}}
+                    <div class="input-group" style="flex: 2; margin-bottom: 0;">
+                        <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">NOMBRE</label>
+                        
+                        {{-- Truco UI: Posición relativa para meter el contador dentro --}}
+                        <div style="position: relative;">
+                            <input type="text" name="nombre" id="input-nombre-etiqueta" required 
+                                   class="modern-input @error('nombre') is-invalid @enderror" 
+                                   placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30"
+                                   style="width: 100%; padding: 10px 45px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; height: 42px; box-sizing: border-box;">
+                            
+                            {{-- Contador flotante dentro del input --}}
+                            <small id="contador-etiqueta" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.75rem; pointer-events: none;">0/30</small>
                         </div>
-
+                        
+                        <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; margin-top: 4px;">Límite alcanzado</small>
+                        
                         @error('nombre')
-                            <span class="validation-error">
-                                <i class="fas fa-info-circle"></i> {{ $message }}
-                            </span>
+                            <div class="validation-error alert-backend" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px;">
+                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                            </div>
                         @enderror
                     </div>
-                    <div class="input-group color-input-group">
-                        <label class="input-label">COLOR</label>
+
+                    {{-- Grupo COLOR --}}
+                    <div class="input-group" style="flex: 1; margin-bottom: 0;">
+                        <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">COLOR</label>
+                        
+                        {{-- Altura forzada a 42px para que coincida exactamente con el input de texto --}}
                         <input type="color" name="color" id="input-color-etiqueta" 
-                               value="{{ old('color', '#2563eb') }}" class="modern-input color-picker-input">
-                               
-                        @error('color')
-                            <span class="validation-error">
-                                {{ $message }}
-                            </span>
-                        @enderror
+                               value="{{ old('color', '#2563eb') }}" 
+                               style="width: 100%; height: 42px; padding: 2px; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; background: white; box-sizing: border-box;">
                     </div>
                 </div>
                 
-                <button type="submit" class="btn-primary btn-full mt-10" id="btn-submit-etiqueta">Crear Nueva</button>
-                <button type="button" class="btn-text btn-full mt-10 text-center hide" id="btn-cancelar-etiqueta" onclick="resetearFormularioEtiquetas()">Cancelar Edición</button>
+                <button type="submit" class="btn-primary" id="btn-submit-etiqueta" style="width: 100%; padding: 10px; border-radius: 6px; font-weight: 600;">Crear Nueva</button>
+                <button type="button" class="btn-text hide" id="btn-cancelar-etiqueta" onclick="resetearFormularioEtiquetas()" style="width: 100%; padding: 10px; margin-top: 5px; text-align: center; color: #6b7280; background: none; border: none; cursor: pointer;">Cancelar Edición</button>
             </form>
 
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+
             <div class="tag-manager-wrapper">
-                <label class="input-label manager-title">ETIQUETAS ACTUALES</label>
-                <ul class="tag-list-manager">
+                <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 10px; display: block;">ETIQUETAS ACTUALES</label>
+                
+                {{-- Contenedor con scroll (overflow-y) para que el modal no se estire infinitamente si hay muchas etiquetas --}}
+                <ul class="tag-list-manager" style="max-height: 220px; overflow-y: auto; padding: 0; margin: 0; list-style: none; padding-right: 5px;">
                     @forelse($labels ?? [] as $etiqueta)
-                        <li class="tag-item-manager" style="border-left-color: {{ $etiqueta->color }};">
+                        <li class="tag-item-manager" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid {{ $etiqueta->color }}; border-top: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6;">
                             
-                            <div class="tag-info-display">
-                                <div class="color-indicator" style="background-color: {{ $etiqueta->color }};"></div>
-                                <span class="tag-text">{{ $etiqueta->name }}</span>
+                            <div class="tag-info-display" style="display: flex; align-items: center; gap: 10px;">
+                                <div class="color-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ $etiqueta->color }};"></div>
+                                <span class="tag-text" style="font-weight: 500; color: #374151;">{{ $etiqueta->name }}</span>
                             </div>
                             
-                            <div class="actions">
-                                <button type="button" class="btn-icon edit" title="Editar" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
+                            {{-- Aseguramos que los íconos de editar y borrar se vean limpios --}}
+                            <div class="actions" style="display: flex; gap: 10px;">
+                                <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
                                     <i class="fas fa-pen"></i>
                                 </button>
                                 
-                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" class="form-inline" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
+                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
+                                    <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
                                 </form>
                             </div>
                         </li>
                     @empty
-                        <p class="empty-labels-text">No hay etiquetas creadas.</p>
+                        <p class="text-center" style="padding: 20px; font-style: italic; color: #9ca3af; font-size: 0.9rem;">No hay etiquetas creadas.</p>
                     @endforelse
                 </ul>
             </div>
@@ -416,8 +425,9 @@
          ========================================== --}}
     <script>
         const FECHA_HOY = "{{ date('Y-m-d') }}";
-// ==========================================
-        // NUEVO: Lógica de Contador de Caracteres (Etiquetas)
+
+        // ==========================================
+        // Lógica de Contador de Caracteres (Etiquetas)
         // ==========================================
         document.addEventListener('DOMContentLoaded', function() {
             const inputNombre = document.getElementById('input-nombre-etiqueta');
@@ -425,62 +435,52 @@
             const mensajeLimite = document.getElementById('mensaje-limite-etiqueta');
             const limite = 30;
 
-            if(inputNombre) {
-                // Función para actualizar el contador
+            if(inputNombre && contador && mensajeLimite) {
                 const actualizarContador = () => {
                     const longitudActual = inputNombre.value.length;
                     contador.innerText = `${longitudActual}/${limite}`;
 
                     if (longitudActual >= limite) {
-                        contador.style.color = '#ef4444'; 
+                        contador.style.color = '#ef4444'; // Rojo
+                        contador.style.fontWeight = 'bold';
                         mensajeLimite.style.display = 'block';
                     } else {
-                        contador.style.color = '#6b7280'; 
+                        contador.style.color = '#9ca3af'; // Gris
+                        contador.style.fontWeight = 'normal';
                         mensajeLimite.style.display = 'none';
                     }
                 };
 
-                // Escuchar cuando el usuario escribe
                 inputNombre.addEventListener('input', actualizarContador);
-                
-                // Ejecutar una vez al abrir para inicializar si ya hay texto (ej. al editar)
-                actualizarContador(); 
+                actualizarContador(); // Ejecutar al inicio por si hay error de validación previo
             }
         });
 
         // ==========================================
-        // NUEVO: Lógica Drag and Drop (Arrastrar)
+        // Lógica Drag and Drop (Arrastrar)
         // ==========================================
         document.addEventListener('DOMContentLoaded', function() {
-            // Inicializar las 3 listas como arrastrables y conectadas entre sí
             const sortableOptions = {
-                group: 'tareas', // Permite arrastrar entre diferentes listas
-                animation: 150,  // Efecto visual suave
-                handle: '.drag-handle', // Solo se arrastra desde el icono de los puntitos
-                ghostClass: 'sortable-ghost', // Clase CSS mientras se arrastra
+                group: 'tareas', 
+                animation: 150, 
+                handle: '.drag-handle',
+                ghostClass: 'sortable-ghost', 
                 
-                // Función que se ejecuta cuando sueltas una tarea en otra lista
                 onEnd: function (evt) {
-                    const itemEl = evt.item;  // El elemento <li> que arrastramos
-                    const toList = evt.to;    // La lista <ul> donde lo soltamos
+                    const itemEl = evt.item;  
+                    const toList = evt.to;    
                     
                     const taskId = itemEl.getAttribute('data-id');
                     const newStatus = toList.getAttribute('data-status');
                     
-                    // Si se soltó en la misma lista, solo reordenamos
-                    // Quitamos el "return;" para que, incluso si la sueltas en la misma lista, se auto-acomode por fecha.
-
-                    // 1. Capturamos los elementos internos de la tarjeta
                     const checkbox = itemEl.querySelector('.task-check');
                     const hiddenInput = itemEl.querySelector('input[name="status"]'); 
                     const contentDiv = itemEl.querySelector('.content'); 
 
-                    // 2. Actualizamos el dato oculto para el Modal de Edición
                     if(contentDiv) {
                         contentDiv.setAttribute('data-estado', newStatus);
                     }
 
-                    // 3. Cambiamos los estilos según la columna
                     if (newStatus === 'completed') {
                         itemEl.classList.add('completed');
                         itemEl.style.borderLeftColor = ''; 
@@ -489,42 +489,31 @@
                     } else {
                         itemEl.classList.remove('completed');
                         if (newStatus === 'in_progress') {
-                            itemEl.style.borderLeftColor = '#0284c7'; // Azul
+                            itemEl.style.borderLeftColor = '#0284c7'; 
                         } else {
-                            itemEl.style.borderLeftColor = ''; // Default
+                            itemEl.style.borderLeftColor = ''; 
                         }
                         if(checkbox) { checkbox.checked = false; checkbox.title = "Marcar como completada"; }
                         if(hiddenInput) hiddenInput.value = 'completed';
                     }
 
-                    // ==========================================
-                    // 4. NUEVO: ORDENAMIENTO AUTOMÁTICO POR FECHA
-                    // ==========================================
-                    // Convertimos todos los <li> de la lista destino en un arreglo para poder ordenarlos
+                    // Ordenamiento Automático
                     const itemsEnLista = Array.from(toList.querySelectorAll('.task-item'));
-                    
                     itemsEnLista.sort((a, b) => {
                         const contentA = a.querySelector('.content');
                         const contentB = b.querySelector('.content');
                         
-                        // Extraemos las fechas
                         let fechaA = contentA ? contentA.getAttribute('data-fecha_limite') : '';
                         let fechaB = contentB ? contentB.getAttribute('data-fecha_limite') : '';
                         
-                        // Si no tienen fecha, les asignamos una en el año 9999 para que se vayan al fondo
                         if (!fechaA) fechaA = '9999-12-31';
                         if (!fechaB) fechaB = '9999-12-31';
                         
-                        // Comparamos las fechas (las más próximas primero)
                         return fechaA.localeCompare(fechaB);
                     });
 
-                    // Volvemos a inyectar los <li> en el <ul> en el orden correcto
-                    // (El navegador los moverá visualmente de forma instantánea)
                     itemsEnLista.forEach(item => toList.appendChild(item));
-                    // ==========================================
 
-                    // 5. Petición AJAX (Fetch) al backend para guardar en BD (Solo si cambió de lista)
                     if (evt.from !== toList) {
                         fetch(`/tareas/${taskId}/estado-ajax`, {
                             method: 'PATCH',
@@ -544,7 +533,6 @@
                 }
             };
 
-            // Aplicar Sortable a las tres listas
             new Sortable(document.getElementById('list-pending'), sortableOptions);
             new Sortable(document.getElementById('list-in_progress'), sortableOptions);
             new Sortable(document.getElementById('list-completed'), sortableOptions);
@@ -555,7 +543,6 @@
         // ==========================================
         function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
         
-        // --- Lógica Modal Etiquetas ---
         function abrirModalEtiquetas() { 
             @if(!$errors->has('nombre') && !$errors->has('color'))
                 resetearFormularioEtiquetas();
@@ -569,7 +556,6 @@
             });
         @endif
         
-        // Mantener abierto el modal de Tareas si el título falla la validación
         @if($errors->has('title'))
             document.addEventListener("DOMContentLoaded", function() {
                 document.getElementById('task-modal').style.display = 'flex';
@@ -585,6 +571,9 @@
             document.getElementById('btn-submit-etiqueta').innerText = 'Guardar Cambios';
             document.getElementById('btn-cancelar-etiqueta').classList.remove('hide');
             document.getElementById('input-nombre-etiqueta').focus();
+            
+            // Forzar disparo del contador al editar
+            document.getElementById('input-nombre-etiqueta').dispatchEvent(new Event('input'));
         }
 
         function resetearFormularioEtiquetas() {
@@ -595,10 +584,17 @@
             form.reset();
             
             const inputName = document.getElementById('input-nombre-etiqueta');
-            if(inputName) inputName.classList.remove('is-invalid');
+            if(inputName) {
+                inputName.classList.remove('is-invalid');
+                inputName.dispatchEvent(new Event('input')); // Resetear contador a 0/30
+            }
 
             document.getElementById('btn-submit-etiqueta').innerText = 'Crear Nueva';
             document.getElementById('btn-cancelar-etiqueta').classList.add('hide');
+            
+            // Ocultar alerta de backend si existe
+            const alertBackend = document.querySelector('.alert-backend');
+            if(alertBackend) alertBackend.style.display = 'none';
         }
 
         // --- Lógica Modal Tareas ---
