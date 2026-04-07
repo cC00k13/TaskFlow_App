@@ -102,6 +102,9 @@ Route::middleware('auth')->group(function () {
 
     // Cambiar Estado vía AJAX (Drag and Drop) - Movido a su lugar correcto
     Route::patch('/tareas/{id}/estado-ajax', [TaskController::class, 'updateStatusAjax']);
+
+    // Descargar/Ver Archivo Adjunto (Evidencia)
+    Route::get('/task/{id}/download', [TaskController::class, 'downloadAttachment'])->name('task.download');
 });
 
 

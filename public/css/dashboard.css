@@ -349,9 +349,9 @@ body {
     text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
-.priority-alta { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
-.priority-media { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
-.priority-baja { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
+.priority-high { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.priority-medium { background: #fef3c7; color: #d97706; border: 1px solid #fcd34d; }
+.priority-low { background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; }
 
 .task-meta {
     font-size: 0.8rem;
@@ -650,6 +650,18 @@ textarea.modern-input {
 }
 
 .label-modal-card { max-width: 400px; }
+
+/* NUEVO: PALETA DE COLORES */
+.color-swatch:hover, .custom-color-wrapper:hover {
+    transform: scale(1.15);
+}
+
+/* Efecto de anillo cuando el color está seleccionado */
+.color-swatch.selected, .custom-color-wrapper.selected {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #4b5563;
+    z-index: 2;
+}
+
 .color-input-group { width: 80px; }
 
 .color-picker-input {
@@ -789,6 +801,33 @@ textarea.modern-input {
 .sortable-list {
     min-height: 50px;
     padding-bottom: 20px;
+}
+
+/* =========================================
+   MENÚ DESPLEGABLE DE COLORES
+   ========================================= */
+#color-picker-trigger .fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+/* Gira la flechita cuando el menú está abierto */
+#color-picker-trigger.is-open .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Animación suave al aparecer la paleta */
+#color-picker-dropdown {
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    transform: translateY(0);
+    opacity: 1;
+    display: block; /* Sobreescribimos el display para animar con opacidad */
+}
+
+/* Estado oculto animado */
+#color-picker-dropdown.hide {
+    opacity: 0;
+    transform: translateY(-10px);
+    pointer-events: none; /* Para que no se le pueda dar clic cuando está invisible */
 }
 
 /* =========================================

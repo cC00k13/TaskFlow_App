@@ -32,15 +32,38 @@
     <script>setTimeout(() => { let t = document.getElementById('toast-error'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 4500);</script>
     @endif
 
-    {{-- Lógica de Tareas (Dividido en 3 estados) --}}
+    {{-- Lógica de Tareas (Filtros, Ordenamiento y Estados) --}}
     @php
         $listaTareas = collect($tasks ?? []);
-        $ordenarPorFecha = function($tarea) {
+
+        // 1. APLICAR FILTRO DE PRIORIDAD (Si existe)
+        $prioridadFiltro = request('filter_priority', 'todas');
+        if($prioridadFiltro !== 'todas') {
+            $listaTareas = $listaTareas->where('priority', $prioridadFiltro);
+        }
+
+        // 2. DEFINIR ORDENAMIENTO (Fecha Ascendente, Descendente o Creación)
+        $orden = request('ordenar_por', 'fecha_asc');
+        
+        $ordenarPorFechaAsc = function($tarea) {
             return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date;
         };
+        $ordenarPorFechaDesc = function($tarea) {
+            return empty($tarea->due_date) ? '0000-00-00' : $tarea->due_date;
+        };
 
-        $pendientes = $listaTareas->where('status', 'pending')->sortBy($ordenarPorFecha);
-        $enProgreso = $listaTareas->where('status', 'in_progress')->sortBy($ordenarPorFecha);
+        if($orden === 'fecha_desc') {
+            $listaTareas = $listaTareas->sortByDesc($ordenarPorFechaDesc);
+        } elseif($orden === 'mas_recientes') {
+            // Asume que la colección mantiene el orden original de inserción
+            $listaTareas = $listaTareas->reverse(); 
+        } else {
+            $listaTareas = $listaTareas->sortBy($ordenarPorFechaAsc);
+        }
+
+        // 3. DIVIDIR EN ESTADOS
+        $pendientes = $listaTareas->where('status', 'pending');
+        $enProgreso = $listaTareas->where('status', 'in_progress');
         $completadas = $listaTareas->where('status', 'completed');
     @endphp
 
@@ -73,15 +96,34 @@
                     </button>
                 </div>
                 
+                {{-- CONTROLES DE FILTRO Y ORDEN SIMULTÁNEOS --}}
                 <div class="filters-and-summary">
                     <div class="filter-bar">
-                        <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
-                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline" style="display: inline;">
-                            <select name="ordenar_por" class="select-ordenar" onchange="this.form.submit()">
-                                <option value="fecha_proxima" {{ request('ordenar_por') == 'fecha_proxima' ? 'selected' : '' }}>Más próximas a vencer</option>
-                                <option value="mas_recientes" {{ request('ordenar_por') == 'mas_recientes' ? 'selected' : '' }}>Más recientes</option>
-                                <option value="prioridad_alta" {{ request('ordenar_por') == 'prioridad_alta' ? 'selected' : '' }}>Prioridad más alta</option>
+                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline" style="display: flex; gap: 10px; align-items: center;" id="form-filtros">
+                            
+                            {{-- Input oculto para mantener el orden actual cuando solo se cambia la prioridad --}}
+                            <input type="hidden" name="ordenar_por" id="input-orden-actual" value="{{ $orden }}">
+
+                            {{-- 1. FILTRO DE PRIORIDAD (Dropdown) --}}
+                            <label><i class="fas fa-filter"></i> Prioridad:</label>
+                            <select name="filter_priority" class="select-ordenar" onchange="document.getElementById('form-filtros').submit();" style="min-width: 120px;">
+                                <option value="todas" {{ $prioridadFiltro == 'todas' ? 'selected' : '' }}>Todas</option>
+                                <option value="high" {{ $prioridadFiltro == 'high' ? 'selected' : '' }}>Alta</option>
+                                <option value="medium" {{ $prioridadFiltro == 'medium' ? 'selected' : '' }}>Media</option>
+                                <option value="low" {{ $prioridadFiltro == 'low' ? 'selected' : '' }}>Baja</option>
                             </select>
+
+                            {{-- 2. BOTÓN DE ALTERNAR ORDEN (Toggle Asc/Desc) --}}
+                            @php
+                                // Calculamos cuál será el siguiente estado y el ícono al darle clic
+                                $siguienteOrden = ($orden == 'fecha_asc') ? 'fecha_desc' : 'fecha_asc';
+                                $iconoOrden = ($orden == 'fecha_asc') ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up-alt';
+                            @endphp
+                            
+                            <button type="button" class="btn-outline" style="display: flex; gap: 8px; align-items: center; background: white;" title="Alternar orden de fechas" onclick="document.getElementById('input-orden-actual').value = '{{ $siguienteOrden }}'; document.getElementById('form-filtros').submit();">
+                                <i class="fas {{ $iconoOrden }}" style="color: var(--primary);"></i> 
+                                <span>{{ $orden == 'fecha_asc' ? 'Próximas a vencer' : 'Más lejanas a vencer' }}</span>
+                            </button>
                         </form>
                     </div>
                     <span class="badge-pending">{{ $pendientes->count() + $enProgreso->count() }} Tareas Activas</span>
@@ -108,11 +150,18 @@
                                 data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
                                 data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
                                 data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
-                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="{{ $tarea->attachment ? basename($tarea->attachment) : '' }}">
 
                                 <span class="title">{{ $tarea->title }}</span>
                                 <div class="tags">
-                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">
+                                        @if($tarea->priority == 'high') ALTA
+                                        @elseif($tarea->priority == 'low') BAJA
+                                        @else MEDIA
+                                        @endif
+                                    </span>
+                                    
                                     @foreach($tarea->labels ?? [] as $etiqueta)
                                         <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
                                     @endforeach
@@ -122,6 +171,13 @@
                                         <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
                                             <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
+                                    @endif
+                                    
+                                    {{-- DESCARGA DE ARCHIVO --}}
+                                    @if(!empty($tarea->attachment))
+                                        <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                            <i class="fas fa-paperclip"></i> Ver Evidencia
+                                        </a>
                                     @endif
                                 </div>
                             </div>
@@ -163,11 +219,18 @@
                                 data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
                                 data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
                                 data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
-                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}">
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="{{ $tarea->attachment ? basename($tarea->attachment) : '' }}">
 
                                 <span class="title">{{ $tarea->title }}</span>
                                 <div class="tags">
-                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">{{ strtoupper($tarea->priority ?? 'MEDIA') }}</span>
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">
+                                        @if($tarea->priority == 'high') ALTA
+                                        @elseif($tarea->priority == 'low') BAJA
+                                        @else MEDIA
+                                        @endif
+                                    </span>
+
                                     @foreach($tarea->labels ?? [] as $etiqueta)
                                         <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
                                     @endforeach
@@ -177,6 +240,13 @@
                                         <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
                                             <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
+                                    @endif
+                                    
+                                    {{-- DESCARGA DE ARCHIVO --}}
+                                    @if(!empty($tarea->attachment))
+                                        <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500;">
+                                            <i class="fas fa-paperclip"></i> Ver Evidencia
+                                        </a>
                                     @endif
                                 </div>
                             </div>
@@ -213,14 +283,27 @@
                                 <input type="hidden" name="status" value="pending">
                                 <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Devolver a pendientes">
                             </form>
-                            <div class="content">
+                            <div class="content" onclick="abrirModalEditar(this)"
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="{{ $tarea->attachment ? basename($tarea->attachment) : '' }}">
+                                
                                 <span class="title">{{ $tarea->title }}</span>
                                 <div class="task-meta">
                                     <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
+                                    
+                                    {{-- DESCARGA DE ARCHIVO --}}
+                                    @if(!empty($tarea->attachment))
+                                        <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500; margin-left: 15px;">
+                                            <i class="fas fa-paperclip"></i> Evidencia
+                                        </a>
+                                    @endif
                                 </div>
                             </div>
                             <div class="actions">
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -243,6 +326,7 @@
                 <button class="btn-close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
             </div>
             
+            {{-- MULTIPART VITAL PARA ARCHIVOS --}}
             <form action="{{ url('/task/create') }}" method="POST" id="form-tarea" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="_method" id="metodo-formulario" value="POST">
@@ -314,9 +398,21 @@
                     </div>
                 </div>
 
+                {{-- CARGA Y VALIDACIÓN VISUAL DE ARCHIVO --}}
                 <div class="input-group">
-                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR ARCHIVO</label>
+                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIA</label>
                     <input type="file" name="attachment" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
+                    
+                    {{-- Este div aparecerá dinámicamente si la tarea editada ya tiene archivo --}}
+                    <div id="archivo-actual-container" style="display: none; margin-top: 8px; font-size: 0.85rem; color: #059669; background: #ecfdf5; padding: 8px 12px; border-radius: 6px; border: 1px solid #a7f3d0;">
+                        <i class="fas fa-check-circle"></i> Archivo actual: <strong id="nombre-archivo-actual"></strong>
+                    </div>
+                    
+                    @error('attachment')
+                        <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">
+                            {{ $message }}
+                        </span>
+                    @enderror
                 </div>
 
                 <div class="form-actions">
@@ -328,7 +424,7 @@
     </div>
 
     {{-- ==========================================
-         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS (UI MEJORADA)
+         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
          ========================================== --}}
     <div class="modal-overlay" id="label-modal">
         <div class="modal-card modal-sm label-modal-card">
@@ -341,26 +437,18 @@
                 @csrf
                 <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
                 
-                {{-- Contenedor Flex alineado desde arriba --}}
-                <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px;">
-                    
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
                     {{-- Grupo NOMBRE --}}
-                    <div class="input-group" style="flex: 2; margin-bottom: 0;">
+                    <div class="input-group" style="margin-bottom: 0;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">NOMBRE</label>
-                        
-                        {{-- Truco UI: Posición relativa para meter el contador dentro --}}
                         <div style="position: relative;">
                             <input type="text" name="nombre" id="input-nombre-etiqueta" required 
                                    class="modern-input @error('nombre') is-invalid @enderror" 
                                    placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30"
                                    style="width: 100%; padding: 10px 45px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; height: 42px; box-sizing: border-box;">
-                            
-                            {{-- Contador flotante dentro del input --}}
                             <small id="contador-etiqueta" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.75rem; pointer-events: none;">0/30</small>
                         </div>
-                        
                         <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; margin-top: 4px;">Límite alcanzado</small>
-                        
                         @error('nombre')
                             <div class="validation-error alert-backend" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px;">
                                 <i class="fas fa-exclamation-circle"></i> {{ $message }}
@@ -368,14 +456,45 @@
                         @enderror
                     </div>
 
-                    {{-- Grupo COLOR --}}
-                    <div class="input-group" style="flex: 1; margin-bottom: 0;">
+                    {{-- Grupo PALETA DE COLORES (Desplegable) --}}
+                    <div class="input-group" style="flex: 1; margin-bottom: 0; position: relative;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">COLOR</label>
                         
-                        {{-- Altura forzada a 42px para que coincida exactamente con el input de texto --}}
-                        <input type="color" name="color" id="input-color-etiqueta" 
-                               value="{{ old('color', '#2563eb') }}" 
-                               style="width: 100%; height: 42px; padding: 2px; border: 1px solid #d1d5db; border-radius: 6px; cursor: pointer; background: white; box-sizing: border-box;">
+                        {{-- INPUT OCULTO que guarda el valor real --}}
+                        <input type="hidden" name="color" id="input-color-etiqueta" value="{{ old('color', '#3b82f6') }}">
+
+                        {{-- BOTÓN DISPARADOR (Trigger) --}}
+                        <button type="button" id="color-picker-trigger" class="modern-input" style="display: flex; align-items: center; justify-content: space-between; height: 42px; cursor: pointer; padding: 5px 12px; background: white;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="color-picker-preview" style="width: 18px; height: 18px; border-radius: 50%; background-color: {{ old('color', '#3b82f6') }}; border: 1px solid #d1d5db; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
+                                <span id="color-picker-text" style="font-size: 0.85rem; color: #4b5563; font-weight: 500;">{{ strtoupper(old('color', '#3B82F6')) }}</span>
+                            </div>
+                            <i class="fas fa-chevron-down" style="font-size: 0.75rem; color: #9ca3af;"></i>
+                        </button>
+
+                        {{-- MENÚ DESPLEGABLE FLOTANTE (Oculto por defecto) --}}
+                        <div id="color-picker-dropdown" class="hide" style="position: absolute; top: calc(100% + 5px); left: 0; width: 220px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 50;">
+                            <div class="color-palette" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start;">
+                                @php
+                                    $coloresForm = ['#ef4444', '#f97316', '#f59e0b', '#eab308', '#84cc16', '#22c55e', '#10b981', '#14b8a6', '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899', '#f43f5e', '#64748b'];
+                                @endphp
+                                @foreach($coloresForm as $c)
+                                    <div class="color-swatch {{ old('color', '#3b82f6') === $c ? 'selected' : '' }}" 
+                                         data-color="{{ $c }}" 
+                                         style="width: 24px; height: 24px; border-radius: 50%; background-color: {{ $c }}; cursor: pointer; transition: transform 0.1s; position: relative;" title="{{ $c }}">
+                                    </div>
+                                @endforeach
+
+                                {{-- Custom Color (Arcoíris) --}}
+                                <div class="custom-color-wrapper" style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; cursor: pointer; position: relative; background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);" title="Color personalizado">
+                                    <input type="color" id="custom-color-picker" value="{{ old('color', '#3b82f6') }}" style="opacity: 0; position: absolute; width: 100%; height: 100%; cursor: pointer; border: none; padding: 0;">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        @error('color')
+                            <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">{{ $message }}</span>
+                        @enderror
                     </div>
                 </div>
                 
@@ -387,23 +506,17 @@
 
             <div class="tag-manager-wrapper">
                 <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 10px; display: block;">ETIQUETAS ACTUALES</label>
-                
-                {{-- Contenedor con scroll (overflow-y) para que el modal no se estire infinitamente si hay muchas etiquetas --}}
                 <ul class="tag-list-manager" style="max-height: 220px; overflow-y: auto; padding: 0; margin: 0; list-style: none; padding-right: 5px;">
                     @forelse($labels ?? [] as $etiqueta)
                         <li class="tag-item-manager" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid {{ $etiqueta->color }}; border-top: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6;">
-                            
                             <div class="tag-info-display" style="display: flex; align-items: center; gap: 10px;">
                                 <div class="color-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ $etiqueta->color }};"></div>
                                 <span class="tag-text" style="font-weight: 500; color: #374151;">{{ $etiqueta->name }}</span>
                             </div>
-                            
-                            {{-- Aseguramos que los íconos de editar y borrar se vean limpios --}}
                             <div class="actions" style="display: flex; gap: 10px;">
                                 <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                
                                 <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
                                     @csrf @method('DELETE')
                                     <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">
@@ -423,230 +536,6 @@
     {{-- ==========================================
          SCRIPTS GLOBALES
          ========================================== --}}
-    <script>
-        const FECHA_HOY = "{{ date('Y-m-d') }}";
-
-        // ==========================================
-        // Lógica de Contador de Caracteres (Etiquetas)
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const inputNombre = document.getElementById('input-nombre-etiqueta');
-            const contador = document.getElementById('contador-etiqueta');
-            const mensajeLimite = document.getElementById('mensaje-limite-etiqueta');
-            const limite = 30;
-
-            if(inputNombre && contador && mensajeLimite) {
-                const actualizarContador = () => {
-                    const longitudActual = inputNombre.value.length;
-                    contador.innerText = `${longitudActual}/${limite}`;
-
-                    if (longitudActual >= limite) {
-                        contador.style.color = '#ef4444'; // Rojo
-                        contador.style.fontWeight = 'bold';
-                        mensajeLimite.style.display = 'block';
-                    } else {
-                        contador.style.color = '#9ca3af'; // Gris
-                        contador.style.fontWeight = 'normal';
-                        mensajeLimite.style.display = 'none';
-                    }
-                };
-
-                inputNombre.addEventListener('input', actualizarContador);
-                actualizarContador(); // Ejecutar al inicio por si hay error de validación previo
-            }
-        });
-
-        // ==========================================
-        // Lógica Drag and Drop (Arrastrar)
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function() {
-            const sortableOptions = {
-                group: 'tareas', 
-                animation: 150, 
-                handle: '.drag-handle',
-                ghostClass: 'sortable-ghost', 
-                
-                onEnd: function (evt) {
-                    const itemEl = evt.item;  
-                    const toList = evt.to;    
-                    
-                    const taskId = itemEl.getAttribute('data-id');
-                    const newStatus = toList.getAttribute('data-status');
-                    
-                    const checkbox = itemEl.querySelector('.task-check');
-                    const hiddenInput = itemEl.querySelector('input[name="status"]'); 
-                    const contentDiv = itemEl.querySelector('.content'); 
-
-                    if(contentDiv) {
-                        contentDiv.setAttribute('data-estado', newStatus);
-                    }
-
-                    if (newStatus === 'completed') {
-                        itemEl.classList.add('completed');
-                        itemEl.style.borderLeftColor = ''; 
-                        if(checkbox) { checkbox.checked = true; checkbox.title = "Devolver a pendientes"; }
-                        if(hiddenInput) hiddenInput.value = 'pending'; 
-                    } else {
-                        itemEl.classList.remove('completed');
-                        if (newStatus === 'in_progress') {
-                            itemEl.style.borderLeftColor = '#0284c7'; 
-                        } else {
-                            itemEl.style.borderLeftColor = ''; 
-                        }
-                        if(checkbox) { checkbox.checked = false; checkbox.title = "Marcar como completada"; }
-                        if(hiddenInput) hiddenInput.value = 'completed';
-                    }
-
-                    // Ordenamiento Automático
-                    const itemsEnLista = Array.from(toList.querySelectorAll('.task-item'));
-                    itemsEnLista.sort((a, b) => {
-                        const contentA = a.querySelector('.content');
-                        const contentB = b.querySelector('.content');
-                        
-                        let fechaA = contentA ? contentA.getAttribute('data-fecha_limite') : '';
-                        let fechaB = contentB ? contentB.getAttribute('data-fecha_limite') : '';
-                        
-                        if (!fechaA) fechaA = '9999-12-31';
-                        if (!fechaB) fechaB = '9999-12-31';
-                        
-                        return fechaA.localeCompare(fechaB);
-                    });
-
-                    itemsEnLista.forEach(item => toList.appendChild(item));
-
-                    if (evt.from !== toList) {
-                        fetch(`/tareas/${taskId}/estado-ajax`, {
-                            method: 'PATCH',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            },
-                            body: JSON.stringify({ status: newStatus })
-                        })
-                        .then(response => {
-                            if(!response.ok) throw new Error('Error al actualizar');
-                        })
-                        .catch(error => {
-                            console.error('Fallo al actualizar estado:', error);
-                        });
-                    }
-                }
-            };
-
-            new Sortable(document.getElementById('list-pending'), sortableOptions);
-            new Sortable(document.getElementById('list-in_progress'), sortableOptions);
-            new Sortable(document.getElementById('list-completed'), sortableOptions);
-        });
-
-        // ==========================================
-        // Funciones de Modales Originales
-        // ==========================================
-        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
-        
-        function abrirModalEtiquetas() { 
-            @if(!$errors->has('nombre') && !$errors->has('color'))
-                resetearFormularioEtiquetas();
-            @endif
-            document.getElementById('label-modal').style.display = 'flex'; 
-        }
-
-        @if($errors->has('nombre') || $errors->has('color'))
-            document.addEventListener("DOMContentLoaded", function() {
-                document.getElementById('label-modal').style.display = 'flex';
-            });
-        @endif
-        
-        @if($errors->has('title'))
-            document.addEventListener("DOMContentLoaded", function() {
-                document.getElementById('task-modal').style.display = 'flex';
-            });
-        @endif
-        
-        function editarEtiqueta(id, nombre, color) {
-            document.getElementById('modal-titulo-etiqueta').innerText = 'Editar Etiqueta';
-            document.getElementById('form-etiqueta').action = '/labels/' + id;
-            document.getElementById('metodo-etiqueta').value = 'PUT';
-            document.getElementById('input-nombre-etiqueta').value = nombre;
-            document.getElementById('input-color-etiqueta').value = color;
-            document.getElementById('btn-submit-etiqueta').innerText = 'Guardar Cambios';
-            document.getElementById('btn-cancelar-etiqueta').classList.remove('hide');
-            document.getElementById('input-nombre-etiqueta').focus();
-            
-            // Forzar disparo del contador al editar
-            document.getElementById('input-nombre-etiqueta').dispatchEvent(new Event('input'));
-        }
-
-        function resetearFormularioEtiquetas() {
-            const form = document.getElementById('form-etiqueta');
-            document.getElementById('modal-titulo-etiqueta').innerText = 'Mis Etiquetas';
-            form.action = '{{ url('/label/create') }}';
-            document.getElementById('metodo-etiqueta').value = 'POST';
-            form.reset();
-            
-            const inputName = document.getElementById('input-nombre-etiqueta');
-            if(inputName) {
-                inputName.classList.remove('is-invalid');
-                inputName.dispatchEvent(new Event('input')); // Resetear contador a 0/30
-            }
-
-            document.getElementById('btn-submit-etiqueta').innerText = 'Crear Nueva';
-            document.getElementById('btn-cancelar-etiqueta').classList.add('hide');
-            
-            // Ocultar alerta de backend si existe
-            const alertBackend = document.querySelector('.alert-backend');
-            if(alertBackend) alertBackend.style.display = 'none';
-        }
-
-        // --- Lógica Modal Tareas ---
-        function abrirModalNuevaTarea() {
-            const form = document.getElementById('form-tarea');
-            document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
-            form.action = '{{ url('/task/create') }}';
-            document.getElementById('metodo-formulario').value = 'POST';
-            form.reset();
-            
-            document.getElementById('input-estado').value = 'pending';
-            document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
-            
-            document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
-
-            document.querySelectorAll('.label-checkbox-input').forEach(cb => cb.checked = false);
-            document.getElementById('task-modal').style.display = 'flex';
-        }
-
-        function abrirModalEditar(elemento) {
-            document.getElementById('modal-titulo-principal').innerText = 'Editar Tarea';
-            document.getElementById('form-tarea').action = '/task/' + elemento.getAttribute('data-id');
-            document.getElementById('metodo-formulario').value = 'PUT';
-            
-            let fechaLimite = elemento.getAttribute('data-fecha_limite');
-
-            document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
-            document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
-            document.getElementById('input-fecha').value = fechaLimite;
-            document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
-            document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
-            
-            if (fechaLimite && fechaLimite < FECHA_HOY) {
-                document.getElementById('input-fecha').setAttribute('min', fechaLimite);
-            } else {
-                document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
-            }
-
-            let etiquetas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
-            document.querySelectorAll('.label-checkbox-input').forEach(checkbox => {
-                checkbox.checked = etiquetas.includes(parseInt(checkbox.value));
-            });
-
-            document.getElementById('btn-submit-tarea').innerText = 'Actualizar Cambios';
-            document.getElementById('task-modal').style.display = 'flex';
-        }
-
-        window.onclick = function(event) {
-            if (event.target.className === 'modal-overlay') {
-                event.target.style.display = 'none';
-            }
-        }
-    </script>
+    @include('partials.scripts')
 </body>
 </html>

@@ -7,8 +7,9 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Illuminate\Validation\Rule;
 use App\Models\Task;
-use App\Models\Label; // Agregado para que no marque error en el index
+use App\Models\Label;
 use Illuminate\Support\Facades\Auth; 
+use Illuminate\Support\Facades\Storage; // Necesario para borrar y descargar archivos
 
 class TaskController extends Controller
 {
@@ -20,7 +21,7 @@ class TaskController extends Controller
 
     public function store(Request $request): RedirectResponse 
     {
-        // 1. Validamos todos los campos (Con reglas de unicidad)
+        // 1. Validamos todos los campos
         $validated = $request->validate([
             'title' => [
                 'required', 
@@ -30,31 +31,33 @@ class TaskController extends Controller
             ],
             'description' => 'nullable|string',
             'due_date'    => ['required', 'date', Rule::date()->todayOrAfter()],
-            'priority'    => 'required|string', 
-            'attachment'  => 'nullable|file|max:2048',
+            'priority'    => 'required|string|in:low,medium,high', 
+            'attachment'  => 'nullable|file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120', // Máx 5MB
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
         ], [
-            // Mensajes formales personalizados para la vista
-            'title.required' => 'El título de la tarea no puede estar vacío ni contener solo espacios.',
-            'title.unique'   => 'Ya tienes una tarea activa con este mismo título.'
+            'title.required' => 'El título de la tarea no puede estar vacío.',
+            'title.unique'   => 'Ya tienes una tarea activa con este mismo título.',
+            'attachment.mimes' => 'El archivo debe ser PDF, Word o Imagen.',
+            'attachment.max' => 'El archivo no debe pesar más de 5MB.'
         ]);
 
-        // 2. Manejo de archivos adjuntos
+        // 2. Manejo de archivos adjuntos (Storage de Laravel)
         $rutaArchivo = null;
         if ($request->hasFile('attachment')) {
+            // Guarda el archivo en storage/app/public/attachments
             $rutaArchivo = $request->file('attachment')->store('attachments', 'public');
         }
 
-        // 3. Crear la Tarea inyectando el ID del usuario de forma segura y FORZANDO el estado
+        // 3. Crear la Tarea
         $task = Task::create([
             'user_id'     => Auth::id(),
             'title'       => $validated['title'],
             'description' => $validated['description'],
             'due_date'    => $validated['due_date'],
             'priority'    => $validated['priority'],
-            'status'      => 'pending', // ¡EL CANDADO DE SEGURIDAD! Siempre nace pendiente
-            'attachment'  => $rutaArchivo,
+            'status'      => 'pending', // Siempre nace pendiente
+            'attachment'  => $rutaArchivo, // Guardamos la ruta del archivo
         ]);
 
         // 4. Conectar las Etiquetas (Muchos a Muchos)
@@ -62,41 +65,31 @@ class TaskController extends Controller
             $task->labels()->attach($validated['labels']);
         }
 
-        // 5. Redireccionar con éxito
         return redirect('/dashboard')->with('success', '¡Tarea creada exitosamente!');
     }
 
     public function toggleStatus(Request $request, $id)
     {
-        // 1. Encontrar la tarea específica en la base de datos
         $task = Task::findOrFail($id);
 
-        // 2. Seguridad: Asegurar que el alumno solo modifique SUS propias tareas
         if ($task->user_id !== Auth::id()) {
             abort(403, 'Acceso denegado. Esta tarea no te pertenece.');
         }
 
-        // 3. Leemos el 'status' exacto que nos mandó el checkbox del frontend ('completed' o 'pending')
         $task->status = $request->input('status');
-        
-        // 4. Guardar permanentemente para no perder el progreso
         $task->save();
 
-        // 5. Regresar al Dashboard silenciosamente
         return back()->with('success', '¡Estado de la tarea actualizado!');
     }
 
     public function update(Request $request, $id)
     {
-        // 1. Buscar la tarea original
         $task = Task::findOrFail($id);
 
-        // 2. Seguridad: Evitar que modifiquen tareas de otros alumnos
         if ($task->user_id !== Auth::id()) {
             abort(403, 'Acceso denegado. No puedes editar esta tarea.');
         }
 
-        // 3. Validar los datos que vienen del formulario del modal
         $validated = $request->validate([
             'title' => [
                 'required', 
@@ -106,16 +99,27 @@ class TaskController extends Controller
             ],
             'description' => 'nullable|string',
             'due_date'    => 'required|date',
-            'priority'    => 'required|string', 
-            'status'      => 'required|string',
+            'priority'    => 'required|string|in:low,medium,high', 
+            'status'      => 'required|string|in:pending,in_progress,completed',
+            'attachment'  => 'nullable|file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120',
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
         ], [
-            'title.required' => 'El título de la tarea no puede estar vacío ni contener solo espacios.',
+            'title.required' => 'El título de la tarea no puede estar vacío.',
             'title.unique'   => 'Ya tienes una tarea activa con este mismo título.'
         ]);
 
-        // 4. Sobreescribir los datos escalares en la base de datos
+        // 4. Actualización del archivo adjunto (Si el usuario sube uno nuevo)
+        if ($request->hasFile('attachment')) {
+            // Si ya tenía un archivo viejo, lo borramos para no ocupar espacio basura
+            if ($task->attachment) {
+                Storage::disk('public')->delete($task->attachment);
+            }
+            // Guardamos el nuevo archivo
+            $task->attachment = $request->file('attachment')->store('attachments', 'public');
+        }
+
+        // 5. Sobreescribir los datos en la base de datos
         $task->update([
             'title'       => $validated['title'],
             'description' => $validated['description'],
@@ -124,44 +128,75 @@ class TaskController extends Controller
             'status'      => $validated['status'],
         ]);
 
-        // 5. Sincronizar las etiquetas (La magia de sync)
+        // 6. Sincronizar las etiquetas
         if ($request->has('labels')) {
             $task->labels()->sync($validated['labels']);
         } else {
-            // Si el usuario desmarcó todas las etiquetas, vaciamos la relación
             $task->labels()->detach(); 
         }
 
-        // 6. Regresar al panel con éxito
         return redirect('/dashboard')->with('success', '¡Tarea actualizada correctamente!');
     }
 
     public function destroy($id)
     {
-        // 1. Encontrar la tarea (buscamos normalmente, sin withTrashed)
         $task = Task::findOrFail($id);
 
-        // 2. Solo el dueño puede destruirla
         if ($task->user_id !== Auth::id()) {
             abort(403, 'Acceso denegado. No puedes eliminar esta tarea.');
         }
 
-        // 3. Borrado Lógico (SoftDelete). ¡Desaparece de la vista pero se queda en la BD!
+        // Nota: Como usamos SoftDeletes, NO borramos el archivo físico de Storage todavía
+        // por si el usuario quiere "recuperar" la tarea de la papelera en el futuro.
         $task->delete();
 
-        // 4. Recargar la página con mensaje de confirmación actualizado
         return back()->with('success', '¡Tarea eliminada (enviada a la papelera)!');
     }
     
     public function updateStatusAjax(Request $request, $id)
     {
-    $request->validate([
-        'status' => 'required|in:pending,in_progress,completed'
-    ]);
+        $request->validate([
+            'status' => 'required|in:pending,in_progress,completed'
+        ]);
 
-    $task = Task::findOrFail($id);
-    $task->update(['status' => $request->status]);
+        $task = Task::findOrFail($id);
+        
+        // Seguridad para AJAX
+        if ($task->user_id !== Auth::id()) {
+            return response()->json(['error' => 'No autorizado'], 403);
+        }
 
-    return response()->json(['success' => true]);
+        $task->update(['status' => $request->status]);
+
+        return response()->json(['success' => true]);
+    }
+
+    // ==========================================
+    // NUEVA FUNCIÓN: Descargar/Ver Evidencia
+    // ==========================================
+    public function downloadAttachment($id)
+    {
+        $task = Task::findOrFail($id);
+
+        // Seguridad: Solo el dueño de la tarea puede ver/descargar el archivo
+        if ($task->user_id !== Auth::id()) {
+            abort(403, 'Acceso denegado. No puedes ver este archivo.');
+        }
+
+        if (!$task->attachment) {
+            return back()->withErrors(['attachment' => 'Esta tarea no tiene ninguna evidencia adjunta.']);
+        }
+
+        // Construir la ruta completa al archivo en la carpeta storage/app/public/attachments
+        $rutaArchivo = storage_path('app/public/' . $task->attachment);
+        
+        // Verificar que el archivo exista físicamente en el servidor
+        if (file_exists($rutaArchivo)) {
+            // El método response()->file() abre el archivo en el navegador (útil para PDFs o imágenes).
+            // Si quisieras forzar la descarga, usarías response()->download($rutaArchivo);
+            return response()->file($rutaArchivo);
+        }
+
+        return back()->withErrors(['attachment' => 'El archivo no se encontró en el servidor.']);
     }
 }
