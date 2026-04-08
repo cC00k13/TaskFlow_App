@@ -6,7 +6,6 @@
     <title>TaskFlow - Mis Tareas</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    {{-- Librería SortableJS para Arrastrar y Soltar --}}
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
@@ -36,13 +35,13 @@
     @php
         $listaTareas = collect($tasks ?? []);
 
-        // 1. APLICAR FILTRO DE PRIORIDAD (Si existe)
+        // 1. APLICAR FILTRO DE PRIORIDAD
         $prioridadFiltro = request('filter_priority', 'todas');
         if($prioridadFiltro !== 'todas') {
             $listaTareas = $listaTareas->where('priority', $prioridadFiltro);
         }
 
-        // 2. DEFINIR ORDENAMIENTO (Fecha Ascendente, Descendente o Creación)
+        // 2. DEFINIR ORDENAMIENTO
         $orden = request('ordenar_por', 'fecha_asc');
         
         $ordenarPorFechaAsc = function($tarea) {
@@ -55,7 +54,6 @@
         if($orden === 'fecha_desc') {
             $listaTareas = $listaTareas->sortByDesc($ordenarPorFechaDesc);
         } elseif($orden === 'mas_recientes') {
-            // Asume que la colección mantiene el orden original de inserción
             $listaTareas = $listaTareas->reverse(); 
         } else {
             $listaTareas = $listaTareas->sortBy($ordenarPorFechaAsc);
@@ -96,15 +94,12 @@
                     </button>
                 </div>
                 
-                {{-- CONTROLES DE FILTRO Y ORDEN SIMULTÁNEOS --}}
+                {{-- CONTROLES DE FILTRO Y ORDEN --}}
                 <div class="filters-and-summary">
                     <div class="filter-bar">
                         <form action="{{ route('dashboard') }}" method="GET" class="form-inline" style="display: flex; gap: 10px; align-items: center;" id="form-filtros">
-                            
-                            {{-- Input oculto para mantener el orden actual cuando solo se cambia la prioridad --}}
                             <input type="hidden" name="ordenar_por" id="input-orden-actual" value="{{ $orden }}">
 
-                            {{-- 1. FILTRO DE PRIORIDAD (Dropdown) --}}
                             <label><i class="fas fa-filter"></i> Prioridad:</label>
                             <select name="filter_priority" class="select-ordenar" onchange="document.getElementById('form-filtros').submit();" style="min-width: 120px;">
                                 <option value="todas" {{ $prioridadFiltro == 'todas' ? 'selected' : '' }}>Todas</option>
@@ -113,9 +108,7 @@
                                 <option value="low" {{ $prioridadFiltro == 'low' ? 'selected' : '' }}>Baja</option>
                             </select>
 
-                            {{-- 2. BOTÓN DE ALTERNAR ORDEN (Toggle Asc/Desc) --}}
                             @php
-                                // Calculamos cuál será el siguiente estado y el ícono al darle clic
                                 $siguienteOrden = ($orden == 'fecha_asc') ? 'fecha_desc' : 'fecha_asc';
                                 $iconoOrden = ($orden == 'fecha_asc') ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up-alt';
                             @endphp
@@ -173,7 +166,6 @@
                                         </span>
                                     @endif
                                     
-                                    {{-- DESCARGA DE ARCHIVO --}}
                                     @if(!empty($tarea->attachment))
                                         <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500;">
                                             <i class="fas fa-paperclip"></i> Ver Evidencia
@@ -242,7 +234,6 @@
                                         </span>
                                     @endif
                                     
-                                    {{-- DESCARGA DE ARCHIVO --}}
                                     @if(!empty($tarea->attachment))
                                         <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500;">
                                             <i class="fas fa-paperclip"></i> Ver Evidencia
@@ -294,7 +285,6 @@
                                 <div class="task-meta">
                                     <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
                                     
-                                    {{-- DESCARGA DE ARCHIVO --}}
                                     @if(!empty($tarea->attachment))
                                         <a href="{{ url('/task/' . $tarea->id . '/download') }}" target="_blank" class="meta-file" title="Abrir archivo" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-weight: 500; margin-left: 15px;">
                                             <i class="fas fa-paperclip"></i> Evidencia
@@ -326,10 +316,9 @@
                 <button class="btn-close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            {{-- MULTIPART VITAL PARA ARCHIVOS --}}
             <form action="{{ url('/task/create') }}" method="POST" id="form-tarea" enctype="multipart/form-data">
                 @csrf
-                <input type="hidden" name="_method" id="metodo-formulario" value="POST">
+                <input type="hidden" name="_method" id="metodo-formulario" value="{{ old('_method', 'POST') }}">
                 
                 <div class="input-group">
                     <label class="input-label">TÍTULO</label>
@@ -346,7 +335,7 @@
                 
                 <div class="input-group">
                     <label class="input-label">DESCRIPCIÓN</label>
-                    <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
+                    <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea...">{{ old('description') }}</textarea>
                 </div>
 
                 <div class="input-group">
@@ -354,7 +343,8 @@
                     <div class="labels-grid-selector">
                         @forelse($labels ?? [] as $etiqueta)
                             <label class="label-checkbox-wrapper" title="{{ $etiqueta->name }}">
-                                <input type="checkbox" name="labels[]" value="{{ $etiqueta->id }}" class="label-checkbox-input">
+                                <input type="checkbox" name="labels[]" value="{{ $etiqueta->id }}" class="label-checkbox-input"
+                                       {{ (is_array(old('labels')) && in_array($etiqueta->id, old('labels'))) ? 'checked' : '' }}>
                                 <span class="label-pill" style="--tag-color: {{ $etiqueta->color }};">
                                     <span class="color-dot" style="background-color: {{ $etiqueta->color }};"></span>
                                     <span class="tag-name-text">{{ $etiqueta->name }}</span>
@@ -375,7 +365,7 @@
                     </div>
                     <div class="input-group half">
                         <label class="input-label">FECHA LÍMITE</label>
-                        <input type="date" name="due_date" id="input-fecha" class="modern-input">
+                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}">
                     </div>
                 </div>
 
@@ -383,17 +373,17 @@
                     <div class="input-group half">
                         <label class="input-label">PRIORIDAD</label>
                         <select name="priority" id="input-prioridad" class="modern-input">
-                            <option value="low">Baja</option>
-                            <option value="medium" selected>Media</option>
-                            <option value="high">Alta</option>
+                            <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>Baja</option>
+                            <option value="medium" {{ old('priority', 'medium') == 'medium' ? 'selected' : '' }}>Media</option>
+                            <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>Alta</option>
                         </select>
                     </div>
                     <div class="input-group half">
                         <label class="input-label">ESTADO</label>
                         <select name="status" id="input-estado" class="modern-input">
-                            <option value="pending" selected>Pendiente</option>
-                            <option value="in_progress">En Progreso</option>
-                            <option value="completed">Completada</option>
+                            <option value="pending" {{ old('status', 'pending') == 'pending' ? 'selected' : '' }}>Pendiente</option>
+                            <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>En Progreso</option>
+                            <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Completada</option>
                         </select>
                     </div>
                 </div>
@@ -403,9 +393,15 @@
                     <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIA</label>
                     <input type="file" name="attachment" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
                     
-                    {{-- Este div aparecerá dinámicamente si la tarea editada ya tiene archivo --}}
+                    {{-- AVISO DE BORRADOR PARA ARCHIVOS --}}
+                    @if($errors->any())
+                        <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
+                            <i class="fas fa-exclamation-triangle"></i> Por seguridad del navegador, <strong>debes volver a seleccionar tu archivo</strong>.
+                        </div>
+                    @endif
+
                     <div id="archivo-actual-container" style="display: none; margin-top: 8px; font-size: 0.85rem; color: #059669; background: #ecfdf5; padding: 8px 12px; border-radius: 6px; border: 1px solid #a7f3d0;">
-                        <i class="fas fa-check-circle"></i> Archivo actual: <strong id="nombre-archivo-actual"></strong>
+                        <i class="fas fa-check-circle"></i> Archivo actual guardado: <strong id="nombre-archivo-actual"></strong>
                     </div>
                     
                     @error('attachment')
@@ -438,7 +434,6 @@
                 <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
                 
                 <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
-                    {{-- Grupo NOMBRE --}}
                     <div class="input-group" style="margin-bottom: 0;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">NOMBRE</label>
                         <div style="position: relative;">
@@ -456,14 +451,11 @@
                         @enderror
                     </div>
 
-                    {{-- Grupo PALETA DE COLORES (Desplegable) --}}
                     <div class="input-group" style="flex: 1; margin-bottom: 0; position: relative;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">COLOR</label>
                         
-                        {{-- INPUT OCULTO que guarda el valor real --}}
                         <input type="hidden" name="color" id="input-color-etiqueta" value="{{ old('color', '#3b82f6') }}">
 
-                        {{-- BOTÓN DISPARADOR (Trigger) --}}
                         <button type="button" id="color-picker-trigger" class="modern-input" style="display: flex; align-items: center; justify-content: space-between; height: 42px; cursor: pointer; padding: 5px 12px; background: white;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span id="color-picker-preview" style="width: 18px; height: 18px; border-radius: 50%; background-color: {{ old('color', '#3b82f6') }}; border: 1px solid #d1d5db; box-shadow: 0 1px 2px rgba(0,0,0,0.1);"></span>
@@ -472,7 +464,6 @@
                             <i class="fas fa-chevron-down" style="font-size: 0.75rem; color: #9ca3af;"></i>
                         </button>
 
-                        {{-- MENÚ DESPLEGABLE FLOTANTE (Oculto por defecto) --}}
                         <div id="color-picker-dropdown" class="hide" style="position: absolute; top: calc(100% + 5px); left: 0; width: 220px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1); z-index: 50;">
                             <div class="color-palette" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-start;">
                                 @php
@@ -485,7 +476,6 @@
                                     </div>
                                 @endforeach
 
-                                {{-- Custom Color (Arcoíris) --}}
                                 <div class="custom-color-wrapper" style="width: 24px; height: 24px; border-radius: 50%; overflow: hidden; cursor: pointer; position: relative; background: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);" title="Color personalizado">
                                     <input type="color" id="custom-color-picker" value="{{ old('color', '#3b82f6') }}" style="opacity: 0; position: absolute; width: 100%; height: 100%; cursor: pointer; border: none; padding: 0;">
                                 </div>
