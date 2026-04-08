@@ -7,30 +7,11 @@
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
 <body>
     
-    {{-- ==========================================
-         FEEDBACK DE ESTADO (NOTIFICACIONES GLOBALES)
-         ========================================== --}}
-    
-    @if(session('success'))
-    <div id="toast-exito" class="toast-notification toast-success">
-        <i class="fas fa-check-circle"></i> 
-        <span>{{ session('success') }}</span>
-    </div>
-    <script>setTimeout(() => { let t = document.getElementById('toast-exito'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 3500);</script>
-    @endif
-
-    @if($errors->any())
-    <div id="toast-error" class="toast-notification toast-error" style="background-color: #ef4444; color: white; border-left-color: #b91c1c;">
-        <i class="fas fa-exclamation-circle"></i> 
-        <span>Por favor, corrige los errores en el formulario.</span>
-    </div>
-    <script>setTimeout(() => { let t = document.getElementById('toast-error'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 4500);</script>
-    @endif
-
     {{-- Lógica de Tareas (Filtros, Ordenamiento y Estados) --}}
     @php
         $listaTareas = collect($tasks ?? []);
@@ -176,7 +157,8 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
+                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -244,7 +226,8 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar?');">
+                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -293,7 +276,8 @@
                                 </div>
                             </div>
                             <div class="actions">
-                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="return confirm('¿Eliminar permanentemente?');">
+                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
@@ -507,7 +491,8 @@
                                 <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
+                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="confirmarEliminacion(event, this, 'etiqueta')">
                                     @csrf @method('DELETE')
                                     <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">
                                         <i class="fas fa-trash"></i>

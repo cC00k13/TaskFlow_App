@@ -2,10 +2,41 @@
     const FECHA_HOY = "{{ date('Y-m-d') }}";
 
     // ==========================================
-    // 1. Lógica de "Borrador" (Reabrir modal si hay errores)
+    // CONFIGURACIÓN GLOBAL DE SWEETALERT
+    // ==========================================
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    // ==========================================
+    // 1. Lógica de "Borrador" y Alertas Globales
     // ==========================================
     document.addEventListener("DOMContentLoaded", function() {
+        // Mostrar notificación de éxito moderna
+        @if(session('success'))
+            Toast.fire({ icon: 'success', title: "{{ session('success') }}" });
+        @endif
+
+        // Lógica de Errores
         @if($errors->any())
+            // 1. Mostrar alerta general
+            Swal.fire({
+                icon: 'error',
+                title: '¡Hay un problema!',
+                text: 'Por favor, revisa los campos marcados en rojo en el formulario.',
+                confirmButtonColor: '#2563eb', // Azul TaskFlow
+                backdrop: `rgba(0,0,0,0.4)`
+            });
+
+            // 2. Reabrir el modal correcto con los datos del borrador
             @if($errors->has('nombre') || $errors->has('color'))
                 abrirModalEtiquetas();
             @else
@@ -204,7 +235,6 @@
         form.action = '{{ url('/label/create') }}';
         document.getElementById('metodo-etiqueta').value = 'POST';
         
-        // Limpieza forzada
         const inputName = document.getElementById('input-nombre-etiqueta');
         if(inputName) {
             inputName.value = ''; 
@@ -226,7 +256,6 @@
         form.action = '{{ url('/task/create') }}';
         document.getElementById('metodo-formulario').value = 'POST';
         
-        // Limpieza forzada
         document.getElementById('input-titulo').value = '';
         document.getElementById('input-descripcion').value = '';
         document.getElementById('input-fecha').value = '';
@@ -272,7 +301,6 @@
             checkbox.checked = etiquetas.includes(parseInt(checkbox.value));
         });
 
-        // Limpiar errores visuales previos si abren otro modal
         document.querySelectorAll('#form-tarea .is-invalid').forEach(el => el.classList.remove('is-invalid'));
         document.querySelectorAll('#form-tarea .validation-error').forEach(el => el.style.display = 'none');
         const avisoArchivo = document.getElementById('form-tarea').querySelector('.fa-exclamation-triangle')?.parentElement;
@@ -286,5 +314,56 @@
         if (event.target.className === 'modal-overlay') {
             event.target.style.display = 'none';
         }
+    }
+
+    // ==========================================
+    // 6. Prevención de envíos múltiples (Spam de clics)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                // Ignorar formularios manejados por SweetAlert
+                if (this.getAttribute('onsubmit') && this.getAttribute('onsubmit').includes('confirmarEliminacion')) {
+                    return; 
+                }
+                
+                // Buscar el botón principal de guardar (ignorando botones de ícono como los de borrar)
+                const btn = this.querySelector('button[type="submit"]:not(.btn-icon)');
+                if(btn) {
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.7';
+                }
+            });
+        });
+    });
+
+    // ==========================================
+    // 7. Alertas Modernas (SweetAlert2)
+    // ==========================================
+    function confirmarEliminacion(event, formulario, tipo) {
+        event.preventDefault(); // Evitar envío automático
+
+        let titulo = tipo === 'etiqueta' ? '¿Eliminar etiqueta?' : '¿Eliminar tarea?';
+        let texto = tipo === 'etiqueta' 
+            ? 'Se desvinculará de todas las tareas. Esta acción no se puede deshacer.' 
+            : 'Esta tarea será enviada a la papelera.';
+
+        Swal.fire({
+            title: titulo,
+            text: texto,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444', // Rojo peligro
+            cancelButtonColor: '#6b7280',  // Gris neutro
+            confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            backdrop: `rgba(0,0,0,0.4)`
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.showLoading();
+                formulario.submit();
+            }
+        });
     }
 </script>

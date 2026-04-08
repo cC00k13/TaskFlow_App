@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 use App\Models\Task;
 use App\Models\Label;
 use Illuminate\Support\Facades\Auth; 
-use Illuminate\Support\Facades\Storage; // Necesario para borrar y descargar archivos
+use Illuminate\Support\Facades\Storage; 
 
 class TaskController extends Controller
 {
@@ -45,7 +45,6 @@ class TaskController extends Controller
         // 2. Manejo de archivos adjuntos (Storage de Laravel)
         $rutaArchivo = null;
         if ($request->hasFile('attachment')) {
-            // Guarda el archivo en storage/app/public/attachments
             $rutaArchivo = $request->file('attachment')->store('attachments', 'public');
         }
 
@@ -57,7 +56,7 @@ class TaskController extends Controller
             'due_date'    => $validated['due_date'],
             'priority'    => $validated['priority'],
             'status'      => 'pending', // Siempre nace pendiente
-            'attachment'  => $rutaArchivo, // Guardamos la ruta del archivo
+            'attachment'  => $rutaArchivo, 
         ]);
 
         // 4. Conectar las Etiquetas (Muchos a Muchos)
@@ -79,7 +78,8 @@ class TaskController extends Controller
         $task->status = $request->input('status');
         $task->save();
 
-        return back()->with('success', '¡Estado de la tarea actualizado!');
+        // Evitamos back(), redirigimos explícitamente al dashboard
+        return redirect('/dashboard')->with('success', '¡Estado de la tarea actualizado!');
     }
 
     public function update(Request $request, $id)
@@ -111,11 +111,9 @@ class TaskController extends Controller
 
         // 4. Actualización del archivo adjunto (Si el usuario sube uno nuevo)
         if ($request->hasFile('attachment')) {
-            // Si ya tenía un archivo viejo, lo borramos para no ocupar espacio basura
             if ($task->attachment) {
                 Storage::disk('public')->delete($task->attachment);
             }
-            // Guardamos el nuevo archivo
             $task->attachment = $request->file('attachment')->store('attachments', 'public');
         }
 
@@ -146,11 +144,10 @@ class TaskController extends Controller
             abort(403, 'Acceso denegado. No puedes eliminar esta tarea.');
         }
 
-        // Nota: Como usamos SoftDeletes, NO borramos el archivo físico de Storage todavía
-        // por si el usuario quiere "recuperar" la tarea de la papelera en el futuro.
         $task->delete();
 
-        return back()->with('success', '¡Tarea eliminada (enviada a la papelera)!');
+        // Evitamos back(), redirigimos explícitamente al dashboard para evitar "Página no encontrada"
+        return redirect('/dashboard')->with('success', '¡Tarea eliminada (enviada a la papelera)!');
     }
     
     public function updateStatusAjax(Request $request, $id)
@@ -161,7 +158,6 @@ class TaskController extends Controller
 
         $task = Task::findOrFail($id);
         
-        // Seguridad para AJAX
         if ($task->user_id !== Auth::id()) {
             return response()->json(['error' => 'No autorizado'], 403);
         }
@@ -172,31 +168,26 @@ class TaskController extends Controller
     }
 
     // ==========================================
-    // NUEVA FUNCIÓN: Descargar/Ver Evidencia
+    // Descargar/Ver Evidencia
     // ==========================================
     public function downloadAttachment($id)
     {
         $task = Task::findOrFail($id);
 
-        // Seguridad: Solo el dueño de la tarea puede ver/descargar el archivo
         if ($task->user_id !== Auth::id()) {
             abort(403, 'Acceso denegado. No puedes ver este archivo.');
         }
 
         if (!$task->attachment) {
-            return back()->withErrors(['attachment' => 'Esta tarea no tiene ninguna evidencia adjunta.']);
+            return redirect('/dashboard')->withErrors(['attachment' => 'Esta tarea no tiene ninguna evidencia adjunta.']);
         }
 
-        // Construir la ruta completa al archivo en la carpeta storage/app/public/attachments
         $rutaArchivo = storage_path('app/public/' . $task->attachment);
         
-        // Verificar que el archivo exista físicamente en el servidor
         if (file_exists($rutaArchivo)) {
-            // El método response()->file() abre el archivo en el navegador (útil para PDFs o imágenes).
-            // Si quisieras forzar la descarga, usarías response()->download($rutaArchivo);
             return response()->file($rutaArchivo);
         }
 
-        return back()->withErrors(['attachment' => 'El archivo no se encontró en el servidor.']);
+        return redirect('/dashboard')->withErrors(['attachment' => 'El archivo no se encontró en el servidor.']);
     }
 }
