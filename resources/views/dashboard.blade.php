@@ -7,7 +7,9 @@
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    {{-- INSTALACIÓN DE SWEETALERT 2 Y ANIMACIONES PARA ESTÉTICA UNIFICADA --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
     <meta name="csrf-token" content="{{ csrf_token() }}"> {{-- Para las peticiones AJAX --}}
 </head>
 <body>
@@ -157,7 +159,7 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                {{-- FUNCIÓN SWEETALERT --}}
                                 <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
@@ -165,9 +167,13 @@
                             </div>
                         </li>
                     @empty
-                        <div class="empty-state">
-                            <i class="fas fa-list-ul"></i>
-                            <p>No tienes tareas pendientes nuevas.</p>
+                        {{-- ESTADO VACÍO CON CTA LLLAMATIVO --}}
+                        <div class="empty-state" style="text-align: center; padding: 40px 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed #e2e8f0; margin-top: 10px;">
+                            <i class="fas fa-clipboard-list" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 15px;"></i>
+                            <p style="color: #64748b; font-weight: 500; margin-bottom: 15px;">Aún no tienes tareas pendientes.</p>
+                            <button type="button" class="btn-primary" onclick="abrirModalNuevaTarea()" style="padding: 8px 20px; font-size: 0.9rem; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-plus"></i> Crear mi primera tarea
+                            </button>
                         </div>
                     @endforelse
                 </ul>
@@ -226,7 +232,7 @@
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                {{-- FUNCIÓN SWEETALERT --}}
                                 <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
@@ -234,9 +240,11 @@
                             </div>
                         </li>
                     @empty
-                        <div class="empty-state">
-                            <i class="fas fa-spinner"></i>
-                            <p>No tienes tareas en progreso.</p>
+                        {{-- ESTADO VACÍO MEJORADO --}}
+                        <div class="empty-state" style="text-align: center; padding: 30px 20px; color: #94a3b8;">
+                            <i class="fas fa-tasks" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <p style="font-size: 0.9rem;">No hay tareas en progreso.</p>
+                            <p style="font-size: 0.8rem; margin-top: 5px;">Arrastra una tarea aquí para comenzar a trabajar en ella.</p>
                         </div>
                     @endforelse
                 </ul>
@@ -276,7 +284,7 @@
                                 </div>
                             </div>
                             <div class="actions">
-                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                {{-- FUNCIÓN SWEETALERT --}}
                                 <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
                                 @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
@@ -491,7 +499,7 @@
                                 <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
                                     <i class="fas fa-pen"></i>
                                 </button>
-                                {{-- NUEVA FUNCIÓN SWEETALERT --}}
+                                {{-- FUNCIÓN SWEETALERT --}}
                                 <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="confirmarEliminacion(event, this, 'etiqueta')">
                                     @csrf @method('DELETE')
                                     <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">
@@ -501,7 +509,12 @@
                             </div>
                         </li>
                     @empty
-                        <p class="text-center" style="padding: 20px; font-style: italic; color: #9ca3af; font-size: 0.9rem;">No hay etiquetas creadas.</p>
+                        {{-- ESTADO VACÍO MEJORADO --}}
+                        <div class="empty-state text-center" style="padding: 30px 10px; text-align: center;">
+                            <i class="fas fa-tags" style="font-size: 2.5rem; color: #cbd5e1; margin-bottom: 10px;"></i>
+                            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px;">No has creado ninguna etiqueta.</p>
+                            <p style="color: #94a3b8; font-size: 0.8rem; font-style: italic;">Usa el formulario de arriba para organizar mejor tus proyectos.</p>
+                        </div>
                     @endforelse
                 </ul>
             </div>

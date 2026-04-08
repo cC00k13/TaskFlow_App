@@ -831,24 +831,62 @@ textarea.modern-input {
 }
 
 /* =========================================
-   Responsive Design
+   DISEÑO RESPONSIVO (Tablets y Celulares)
    ========================================= */
-@media (max-width: 768px) {
+
+/* 1. Para Tablets y pantallas medianas (hasta 850px) */
+@media (max-width: 850px) {
+    /* Ajustes generales del contenedor */
+    body { padding: 10px; }
     .dashboard-card { padding: 25px 20px; }
+    
+    /* Cabecera (Barra de Navegación) */
     .header { flex-direction: column; align-items: flex-start; gap: 15px; }
-    .controls { flex-direction: column; align-items: stretch; }
-    .search-bar { min-width: 100%; }
-    .filters-and-summary { flex-direction: column; align-items: stretch; gap: 15px; }
-    .filter-bar { justify-content: space-between; }
-    .task-item { flex-direction: column; }
+    .user-info { width: 100%; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    
+    /* Controles (Buscador y Filtros) */
+    .controls { flex-direction: column; align-items: stretch; gap: 15px; }
+    .search-bar { width: 100%; max-width: 100%; }
+    .search-bar input { flex: 1; }
+    
+    .filters-and-summary { flex-direction: column; align-items: flex-start; gap: 15px; }
+    .filter-bar { width: 100%; }
+    #form-filtros { flex-wrap: wrap; width: 100%; gap: 10px; }
+    
+    /* Tarjetas de Tareas */
+    .task-item { flex-direction: column; align-items: flex-start; }
+    .task-item .content { width: 100%; margin-left: 0; margin-top: 5px; }
     .actions {
-        opacity: 1;
+        opacity: 1; /* ¡Crítico! En móvil no hay "hover", forzamos que se vean siempre */
         width: 100%;
         justify-content: flex-end;
-        margin-top: 10px;
+        margin-top: 12px;
         border-top: 1px solid var(--border);
         padding-top: 10px;
     }
-    .modal-card { padding: 25px 20px; margin: 15px; }
+
+    /* Formularios de Creación/Edición (Modales) */
+    .modal-card { width: 95%; max-width: 100%; padding: 20px; margin: 15px; }
     .modal-row { flex-direction: column; gap: 15px; }
+    .input-group.half { width: 100%; margin-bottom: 0; } /* Pasa de 2 columnas a 1 columna */
+    
+    /* Modal de Etiquetas */
+    .tag-item-manager { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .tag-item-manager .actions { border-top: none; margin-top: 0; padding-top: 0; justify-content: flex-start; width: auto; }
+}
+
+/* 2. Para Celulares pequeños (hasta 480px) */
+@media (max-width: 480px) {
+    /* Ajustes de tipografía para legibilidad */
+    .brand h2 { font-size: 1.6rem; }
+    .greeting { font-size: 0.9rem; }
+    .task-item .title { font-size: 0.95rem; }
+    
+    /* Accesibilidad táctil ("Fat finger rule") */
+    .btn-primary, .btn-outline { width: 100%; justify-content: center; }
+    .search-bar button { width: 100%; margin-top: 10px; }
+    .search-bar { flex-wrap: wrap; }
+    
+    /* Ajuste del menú de colores de etiquetas */
+    #color-picker-dropdown { width: 100%; left: 0; }
 }
