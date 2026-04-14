@@ -40,7 +40,8 @@ class LabelController extends Controller
             'color'   => $request->color,
         ]);
 
-        return back()->with('success', '¡Etiqueta creada exitosamente!');
+        // CAMBIADO: Redirección explícita para evitar pantallas en blanco
+        return redirect('/dashboard')->with('success', '¡Etiqueta creada exitosamente!');
     }
 
     // Update: Modifica nombre o color
@@ -73,7 +74,8 @@ class LabelController extends Controller
             'color' => $request->color,
         ]);
 
-        return back()->with('success', '¡Etiqueta actualizada!');
+        // CAMBIADO: Redirección explícita
+        return redirect('/dashboard')->with('success', '¡Etiqueta actualizada!');
     }
 
     // Destroy: Eliminación lógica (SoftDelete)
@@ -86,9 +88,14 @@ class LabelController extends Controller
             abort(403, 'Acceso denegado. No puedes eliminar esta etiqueta.');
         }
 
+        // NUEVO: Desvincular la etiqueta de todas las tareas antes de eliminarla
+        // Esto evita conflictos de llaves foráneas y hace que el borrado sea instantáneo.
+        $label->tasks()->detach(); 
+
         // Al usar SoftDeletes en el modelo, esto NO la borra físicamente, solo llena 'deleted_at'
         $label->delete();
 
-        return back()->with('success', '¡Etiqueta eliminada correctamente!');
+        // CAMBIADO: Redirección explícita
+        return redirect('/dashboard')->with('success', '¡Etiqueta eliminada correctamente!');
     }
 }
