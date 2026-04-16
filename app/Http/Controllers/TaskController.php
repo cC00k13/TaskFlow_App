@@ -45,7 +45,7 @@ class TaskController extends Controller
         // 2. Manejo de archivos adjuntos (Storage de Laravel)
         $rutaArchivo = null;
         if ($request->hasFile('attachment')) {
-            $rutaArchivo = $request->file('attachment')->store('attachments', 'public');
+            $rutaArchivo = $request->file('attachment')->store('attachments', 'local');
         }
 
         // 3. Crear la Tarea
@@ -112,9 +112,9 @@ class TaskController extends Controller
         // 4. Actualización del archivo adjunto (Si el usuario sube uno nuevo)
         if ($request->hasFile('attachment')) {
             if ($task->attachment) {
-                Storage::disk('public')->delete($task->attachment);
+                Storage::disk('local')->delete($task->attachment);
             }
-            $task->attachment = $request->file('attachment')->store('attachments', 'public');
+            $task->attachment = $request->file('attachment')->store('attachments', 'local');
         }
 
         // 5. Sobreescribir los datos en la base de datos
@@ -182,12 +182,34 @@ class TaskController extends Controller
             return redirect('/dashboard')->withErrors(['attachment' => 'Esta tarea no tiene ninguna evidencia adjunta.']);
         }
 
-        $rutaArchivo = storage_path('app/public/' . $task->attachment);
-        
-        if (file_exists($rutaArchivo)) {
-            return response()->file($rutaArchivo);
+        // 1. El Radar: Definimos los 3 posibles escondites del archivo (retrocompatibilidad)
+        $rutasPosibles = [
+            storage_path('app/' . $task->attachment),         // Nuevo disco 'local' (Por defecto)
+            storage_path('app/public/' . $task->attachment),  // Disco 'public' (Archivos viejos antes del blindaje)
+            storage_path('app/private/' . $task->attachment), // Nuevo disco private (Laravel 11+)
+        ];
+
+        $rutaFinal = null;
+
+        // 2. Buscar en cuál de las 3 bóvedas existe realmente el archivo
+        foreach ($rutasPosibles as $ruta) {
+            if (file_exists($ruta)) {
+                $rutaFinal = $ruta;
+                break; // En cuanto lo encuentre, detiene la búsqueda
+            }
         }
 
+        // 3. Si lo encontramos, forzamos la descarga blindada con nombre elegante
+        if ($rutaFinal) {
+            $extension = pathinfo($rutaFinal, PATHINFO_EXTENSION);
+            // Convertimos "Mi Tarea Especial!" en "mi-tarea-especial"
+            $nombreLimpio = \Illuminate\Support\Str::slug($task->title);
+            $nombreDescarga = "evidencia_{$nombreLimpio}.{$extension}";
+
+            return response()->download($rutaFinal, $nombreDescarga);
+        }
+
+        // Si después de buscar en los 3 lugares no está, entonces sí damos el error
         return redirect('/dashboard')->withErrors(['attachment' => 'El archivo no se encontró en el servidor.']);
     }
 }
