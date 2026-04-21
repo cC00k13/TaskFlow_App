@@ -4,33 +4,35 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes; // 1. Importamos la clase de borrado lógico
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
 {
-    // 2. Activamos el SoftDeletes junto con HasFactory
-    use HasFactory, SoftDeletes; 
+    use HasFactory, SoftDeletes;
 
-    // 3. Permitimos que estos campos se llenen masivamente desde tu formulario
+    // Cambiamos 'attachment' por 'attachments'
     protected $fillable = [
-        'user_id',
-        'title',
-        'description',
-        'due_date',
-        'priority',
-        'status',
-        'attachment',
+        'user_id', 
+        'title', 
+        'description', 
+        'due_date', 
+        'priority', 
+        'status', 
+        'attachments' 
     ];
 
-    // Relación: Una tarea pertenece a un usuario
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
+    // Magia de Eloquent: Convierte el JSON de la BD a un Array de PHP automáticamente
+    protected $casts = [
+        'attachments' => 'array',
+    ];
 
-    // Relación: Una tarea puede tener múltiples etiquetas (Muchos a Muchos)
     public function labels()
     {
         return $this->belongsToMany(Label::class);
+    }
+    
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }
