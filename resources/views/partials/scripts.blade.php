@@ -366,4 +366,69 @@
             }
         });
     }
+    
+    // ==========================================
+    // 8. Gestor de Archivos Múltiples (DataTransfer)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('file-upload-input');
+        const previewList = document.getElementById('file-preview-list');
+        
+        // DataTransfer es un objeto nativo que nos permite manipular listas de archivos
+        let dt = new DataTransfer(); 
+
+        if(fileInput && previewList) {
+            fileInput.addEventListener('change', function(e) {
+                // Al seleccionar nuevos archivos, los agregamos a nuestro DataTransfer
+                for(let i = 0; i < this.files.length; i++) {
+                    dt.items.add(this.files[i]);
+                }
+                actualizarUIArchivos();
+            });
+
+            function actualizarUIArchivos() {
+                // Sincronizamos el input oculto con nuestra lista personalizada
+                fileInput.files = dt.files; 
+                previewList.innerHTML = ''; // Limpiamos la lista visual
+
+                for(let i = 0; i < dt.files.length; i++) {
+                    const file = dt.files[i];
+                    const li = document.createElement('li');
+                    li.className = 'file-preview-item animate__animated animate__fadeIn animate__faster';
+                    
+                    // Calculamos el tamaño para mostrarlo bonito (KB o MB)
+                    let sizeStr = (file.size / 1024).toFixed(1) + ' KB';
+                    if (file.size > 1024 * 1024) sizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+                    li.innerHTML = `
+                        <div class="file-info">
+                            <i class="fas fa-file-alt text-muted"></i>
+                            <span class="file-name" title="${file.name}">${file.name}</span>
+                            <span class="text-muted" style="font-size: 0.75rem;">(${sizeStr})</span>
+                        </div>
+                        <button type="button" class="remove-file-btn" data-index="${i}" title="Quitar archivo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    previewList.appendChild(li);
+                }
+
+                // Agregamos el evento de eliminar a cada botón "X" que acabamos de crear
+                document.querySelectorAll('.remove-file-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        dt.items.remove(index); // Lo quitamos del DataTransfer
+                        actualizarUIArchivos(); // Recargamos la interfaz
+                    });
+                });
+            }
+
+            // Es importante limpiar el DataTransfer cuando se abre el modal para una NUEVA tarea
+            window.limpiarArchivosUI = function() {
+                dt = new DataTransfer();
+                actualizarUIArchivos();
+                document.getElementById('existing-files-list').innerHTML = ''; // Limpiar existentes
+            }
+        }
+    });
 </script>

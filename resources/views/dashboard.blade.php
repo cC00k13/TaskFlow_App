@@ -380,25 +380,35 @@
                     </div>
                 </div>
 
-                {{-- CARGA Y VALIDACIÓN VISUAL DE ARCHIVO --}}
+                {{-- CARGA Y VALIDACIÓN VISUAL DE ARCHIVOS (MÚLTIPLES) --}}
                 <div class="input-group">
-                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIA</label>
-                    <input type="file" name="attachment" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
+                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIAS</label>
                     
-                    {{-- AVISO DE BORRADOR PARA ARCHIVOS --}}
+                    {{-- 1. Input modificado para aceptar múltiples archivos --}}
+                    <input type="file" name="attachments[]" id="file-upload-input" class="file-input modern-input" accept=".pdf,.doc,.docx,.jpg,.png" multiple>
+                    
+                    {{-- 2. Aviso de borrador para archivos --}}
                     @if($errors->any())
                         <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
-                            <i class="fas fa-exclamation-triangle"></i> Por seguridad del navegador, <strong>debes volver a seleccionar tu archivo</strong>.
+                            <i class="fas fa-exclamation-triangle"></i> Por seguridad, <strong>debes volver a seleccionar tus archivos</strong>.
                         </div>
                     @endif
 
-                    <div id="archivo-actual-container" style="display: none; margin-top: 8px; font-size: 0.85rem; color: #059669; background: #ecfdf5; padding: 8px 12px; border-radius: 6px; border: 1px solid #a7f3d0;">
-                        <i class="fas fa-check-circle"></i> Archivo actual guardado: <strong id="nombre-archivo-actual"></strong>
+                    {{-- 3. Lista para ver y eliminar los archivos NUEVOS que estás a punto de subir --}}
+                    <ul id="file-preview-list" class="file-preview-list"></ul>
+
+                    {{-- 4. Contenedor para archivos que YA estaban guardados en la BD (Edición) --}}
+                    <div id="archivo-actual-container" style="display: none; margin-top: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <label class="input-label" style="font-size: 0.7rem; color: #64748b;">ARCHIVOS GUARDADOS ACTUALMENTE:</label>
+                        <ul id="existing-files-list" class="file-preview-list" style="margin-top: 5px;">
+                            {{-- JavaScript inyectará aquí los archivos guardados --}}
+                        </ul>
                     </div>
                     
-                    @error('attachment')
+                    {{-- 5. Validación de errores en array --}}
+                    @error('attachments.*')
                         <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">
-                            {{ $message }}
+                            <i class="fas fa-exclamation-circle"></i> Ocurrió un error con uno de los archivos.
                         </span>
                     @enderror
                 </div>
@@ -410,7 +420,6 @@
             </form>
         </div>
     </div>
-
     {{-- ==========================================
          MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
          ========================================== --}}
