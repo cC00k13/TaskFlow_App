@@ -330,16 +330,30 @@
                     <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea...">{{ old('description') }}</textarea>
                 </div>
 
+                {{-- ==========================================
+                     NUEVA SECCIÓN: CATEGORÍAS CON BUSCADOR
+                     ========================================== --}}
                 <div class="input-group">
-                    <label class="input-label">CATEGORÍAS / ETIQUETAS</label>
-                    <div class="labels-grid-selector">
+                    <label class="input-label" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                        <span><i class="fas fa-tags"></i> CATEGORÍAS (Opcional)</span>
+                    </label>
+                    
+                    {{-- Buscador de Etiquetas --}}
+                    <div class="labels-search-container" style="position: relative; margin-bottom: 10px;">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.85rem;"></i>
+                        <input type="text" id="buscador-etiquetas" placeholder="Buscar etiqueta..." class="modern-input" style="padding-left: 35px; height: 36px; font-size: 0.85rem; width: 100%;">
+                    </div>
+
+                    {{-- Contenedor de Píldoras --}}
+                    <div class="labels-grid-selector" id="task-labels-container">
                         @forelse($labels ?? [] as $etiqueta)
                             <label class="label-checkbox-wrapper" title="{{ $etiqueta->name }}">
                                 <input type="checkbox" name="labels[]" value="{{ $etiqueta->id }}" class="label-checkbox-input"
                                        {{ (is_array(old('labels')) && in_array($etiqueta->id, old('labels'))) ? 'checked' : '' }}>
                                 <span class="label-pill" style="--tag-color: {{ $etiqueta->color }};">
                                     <span class="color-dot" style="background-color: {{ $etiqueta->color }};"></span>
-                                    <span class="tag-name-text">{{ $etiqueta->name }}</span>
+                                    {{-- Se cambió a label-text-content para que el JS lo encuentre al buscar --}}
+                                    <span class="label-text-content">{{ $etiqueta->name }}</span>
                                 </span>
                             </label>
                         @empty
@@ -347,6 +361,11 @@
                                 <i class="fas fa-info-circle"></i> No tienes etiquetas. Crea una desde "Mis Etiquetas".
                             </p>
                         @endforelse
+                        
+                        {{-- Mensaje para cuando la búsqueda no coincide con nada --}}
+                        <div id="msg-busqueda-vacia" class="empty-labels-msg" style="display: none; width: 100%; text-align: center; color: #94a3b8;">
+                            <i class="fas fa-search-minus"></i> No se encontraron etiquetas.
+                        </div>
                     </div>
                 </div>
 
@@ -357,7 +376,7 @@
                     </div>
                     <div class="input-group half">
                         <label class="input-label">FECHA LÍMITE</label>
-                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}">
+                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}" min="{{ date('Y-m-d') }}">
                     </div>
                 </div>
 
@@ -384,28 +403,22 @@
                 <div class="input-group">
                     <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIAS</label>
                     
-                    {{-- 1. Input modificado para aceptar múltiples archivos --}}
                     <input type="file" name="attachments[]" id="file-upload-input" class="file-input modern-input" accept=".pdf,.doc,.docx,.jpg,.png" multiple>
                     
-                    {{-- 2. Aviso de borrador para archivos --}}
                     @if($errors->any())
                         <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
                             <i class="fas fa-exclamation-triangle"></i> Por seguridad, <strong>debes volver a seleccionar tus archivos</strong>.
                         </div>
                     @endif
 
-                    {{-- 3. Lista para ver y eliminar los archivos NUEVOS que estás a punto de subir --}}
                     <ul id="file-preview-list" class="file-preview-list"></ul>
 
-                    {{-- 4. Contenedor para archivos que YA estaban guardados en la BD (Edición) --}}
                     <div id="archivo-actual-container" style="display: none; margin-top: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;">
                         <label class="input-label" style="font-size: 0.7rem; color: #64748b;">ARCHIVOS GUARDADOS ACTUALMENTE:</label>
                         <ul id="existing-files-list" class="file-preview-list" style="margin-top: 5px;">
-                            {{-- JavaScript inyectará aquí los archivos guardados --}}
                         </ul>
                     </div>
                     
-                    {{-- 5. Validación de errores en array --}}
                     @error('attachments.*')
                         <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">
                             <i class="fas fa-exclamation-circle"></i> Ocurrió un error con uno de los archivos.
@@ -509,7 +522,7 @@
                                     <i class="fas fa-pen"></i>
                                 </button>
                                 {{-- FUNCIÓN SWEETALERT --}}
-                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="confirmarEliminacion(event, this, 'etiqueta')">
+                              <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="eliminarEtiquetaAjax(event, this)">
                                     @csrf @method('DELETE')
                                     <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='#9ca3af'">
                                         <i class="fas fa-trash"></i>

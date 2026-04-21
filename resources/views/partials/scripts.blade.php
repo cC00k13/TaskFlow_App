@@ -431,4 +431,104 @@
             }
         }
     });
+    // ==========================================
+    // Eliminación de Etiquetas sin Recargar (AJAX)
+    // ==========================================
+    function eliminarEtiquetaAjax(event, form) {
+        event.preventDefault(); // Evita que la página se recargue
+        
+        Swal.fire({
+            title: '¿Eliminar etiqueta?',
+            text: "Se quitará esta etiqueta de la lista.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            backdrop: `rgba(15, 23, 42, 0.6)`
+        }).then((result) => {
+            if (result.isConfirmed) {
+                
+                // Hacemos la petición silenciosa al servidor
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest', // Le dice a Laravel que es AJAX
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        // 1. Efecto visual: Deslizar y desvanecer la fila
+                        const filaEtiqueta = form.closest('li');
+                        filaEtiqueta.style.transition = "all 0.3s ease-out";
+                        filaEtiqueta.style.opacity = "0";
+                        filaEtiqueta.style.transform = "translateX(50px)";
+                        
+                        // 2. Esperar que termine la animación (0.3s) y borrar del HTML
+                        setTimeout(() => {
+                            filaEtiqueta.remove();
+                            
+                            // 3. Si ya no quedan etiquetas, mostrar el mensaje de "Vacío"
+                            const lista = document.querySelector('.tag-list-manager');
+                            if(lista.children.length === 0) {
+                                lista.innerHTML = '<p class="text-center" style="padding: 20px; font-style: italic; color: #9ca3af; font-size: 0.9rem;">No hay etiquetas creadas.</p>';
+                            }
+                        }, 300);
+
+                        // 4. Mostrar pequeña notificación de éxito (Toast)
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Etiqueta eliminada',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Hubo un problema al intentar eliminar.', 'error');
+                });
+            }
+        });
+    }
+    // ==========================================
+    // Buscador en Tiempo Real de Etiquetas
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const buscadorEtiquetas = document.getElementById('buscador-etiquetas');
+        
+        if(buscadorEtiquetas) {
+            buscadorEtiquetas.addEventListener('input', function(e) {
+                // Convertimos el texto a minúsculas para que la búsqueda no sea sensible a mayúsculas
+                const terminoBusqueda = e.target.value.toLowerCase().trim();
+                const etiquetasWrappers = document.querySelectorAll('.label-checkbox-wrapper');
+                let etiquetasVisibles = 0;
+
+                etiquetasWrappers.forEach(wrapper => {
+                    // Extraemos el texto de la etiqueta
+                    const textoEtiqueta = wrapper.querySelector('.label-text-content').innerText.toLowerCase();
+                    
+                    // Si el texto incluye lo que escribimos, la mostramos; si no, la ocultamos
+                    if (textoEtiqueta.includes(terminoBusqueda)) {
+                        wrapper.style.display = ''; // Restaura el display original (inline-flex)
+                        etiquetasVisibles++;
+                    } else {
+                        wrapper.style.display = 'none'; // La oculta
+                    }
+                });
+
+                // Si ninguna etiqueta coincide, mostramos el mensaje de "No se encontraron etiquetas"
+                const msgVacio = document.getElementById('msg-busqueda-vacia');
+                if (msgVacio) {
+                    msgVacio.style.display = (etiquetasVisibles === 0 && etiquetasWrappers.length > 0) ? 'block' : 'none';
+                }
+            });
+        }
+    });
 </script>

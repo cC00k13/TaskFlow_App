@@ -40,7 +40,6 @@ class LabelController extends Controller
             'color'   => $request->color,
         ]);
 
-        // CAMBIADO: Redirección explícita para evitar pantallas en blanco
         return redirect('/dashboard')->with('success', '¡Etiqueta creada exitosamente!');
     }
 
@@ -74,28 +73,35 @@ class LabelController extends Controller
             'color' => $request->color,
         ]);
 
-        // CAMBIADO: Redirección explícita
         return redirect('/dashboard')->with('success', '¡Etiqueta actualizada!');
     }
 
-    // Destroy: Eliminación lógica (SoftDelete)
-    public function destroy($id)
+    // Destroy: Eliminación lógica (SoftDelete) con soporte para AJAX
+    public function destroy(Request $request, $id) // <-- AQUÍ AGREGAMOS Request $request
     {
         $label = Label::findOrFail($id);
 
         // Autorización
         if ($label->user_id !== Auth::id()) {
+            // Si la petición viene por AJAX y no tiene permiso, devolvemos error en JSON
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'Acceso denegado.'], 403);
+            }
             abort(403, 'Acceso denegado. No puedes eliminar esta etiqueta.');
         }
 
-        // NUEVO: Desvincular la etiqueta de todas las tareas antes de eliminarla
-        // Esto evita conflictos de llaves foráneas y hace que el borrado sea instantáneo.
+        // Desvincular la etiqueta de todas las tareas antes de eliminarla
         $label->tasks()->detach(); 
 
         // Al usar SoftDeletes en el modelo, esto NO la borra físicamente, solo llena 'deleted_at'
         $label->delete();
 
-        // CAMBIADO: Redirección explícita
+        // NUEVO: Respuesta silenciosa para que JavaScript anime la desaparición
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Etiqueta eliminada']);
+        }
+
+        // Comportamiento normal por si el usuario recarga sin usar JS
         return redirect('/dashboard')->with('success', '¡Etiqueta eliminada correctamente!');
     }
 }
