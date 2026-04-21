@@ -766,6 +766,113 @@ textarea.modern-input {
 }
 
 /* =========================================
+   PREVISUALIZACIÓN DE ARCHIVOS (MODERNO)
+   ========================================= */
+
+/* Contenedor principal de la lista (Quita las viñetas) */
+.file-preview-list {
+    list-style: none !important;
+    padding: 0 !important;
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* Cada "Tarjeta" de archivo */
+.file-preview-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #f8fafc; /* Gris azulado muy claro */
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 15px;
+    transition: all 0.2s ease;
+}
+
+/* Efecto al pasar el mouse sobre la tarjeta */
+.file-preview-item:hover {
+    background-color: #ffffff;
+    border-color: #cbd5e1;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+
+/* Contenedor de Icono + Nombre + Peso */
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    overflow: hidden; /* Evita que nombres largos rompan el diseño */
+    flex: 1;
+}
+
+/* Icono del documento */
+.file-info i {
+    color: #64748b;
+    font-size: 1.2rem;
+}
+
+/* Nombre del archivo (Se corta con "..." si es muy largo) */
+.file-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px; /* Ajusta este valor si quieres que quepa más o menos texto */
+}
+
+/* Peso del archivo (Ej. 450 KB) */
+.file-size {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+/* Botón de la 'X' (Eliminar) */
+.remove-file-btn {
+    background-color: #fee2e2; /* Fondo rojo clarito */
+    color: #ef4444; /* Icono rojo fuerte */
+    border: none;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0; /* Evita que el botón se haga ovalado */
+}
+
+/* Efecto al pasar el mouse sobre la 'X' */
+.remove-file-btn:hover {
+    background-color: #ef4444;
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+/* Estilo para el botón nativo de "Elegir archivos" */
+.file-input::file-selector-button {
+    background: #f1f5f9;
+    color: #1e293b;
+    border: 1px solid #cbd5e1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-right: 15px;
+    transition: 0.2s;
+}
+
+.file-input::file-selector-button:hover {
+    background: #e2e8f0;
+}
+
+/* =========================================
    NUEVO: Estilos para Arrastrar y Soltar (Drag & Drop)
    ========================================= */
 .draggable-item {
