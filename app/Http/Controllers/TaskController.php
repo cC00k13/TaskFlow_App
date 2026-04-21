@@ -19,9 +19,8 @@ class TaskController extends Controller
         return view('task.create');
     }
 
-    public function store(Request $request): RedirectResponse 
+   public function store(Request $request): RedirectResponse 
     {
-        // 1. Validamos todos los campos
         $validated = $request->validate([
             'title' => [
                 'required', 
@@ -32,34 +31,44 @@ class TaskController extends Controller
             'description' => 'nullable|string',
             'due_date'    => ['required', 'date', Rule::date()->todayOrAfter()],
             'priority'    => 'required|string|in:low,medium,high', 
-            'attachment'  => 'nullable|file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120', // Máx 5MB
+            // Validamos que sea un arreglo de archivos y cada uno cumpla las reglas
+            'attachments'   => 'nullable|array|max:5', // Máximo 5 archivos por tarea
+            'attachments.*' => 'file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120',
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
         ], [
             'title.required' => 'El título de la tarea no puede estar vacío.',
             'title.unique'   => 'Ya tienes una tarea activa con este mismo título.',
-            'attachment.mimes' => 'El archivo debe ser PDF, Word o Imagen.',
-            'attachment.max' => 'El archivo no debe pesar más de 5MB.'
+            'attachments.*.mimes' => 'Uno de los archivos no es válido. Solo se permite PDF, Word o Imagen.',
+            'attachments.*.max' => 'Ningún archivo debe pesar más de 5MB.'
         ]);
 
-        // 2. Manejo de archivos adjuntos (Storage de Laravel)
-        $rutaArchivo = null;
-        if ($request->hasFile('attachment')) {
-            $rutaArchivo = $request->file('attachment')->store('attachments', 'local');
+        // Construir la estructura JSON para las evidencias
+        $archivosData = [];
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                // Guardamos en la bóveda privada (blindaje intacto)
+                $path = $file->store('attachments', 'local');
+                
+                // Extraemos los metadatos para la UI interactiva
+                $archivosData[] = [
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'size' => $file->getSize(), // En bytes, lo formatearemos en el frontend
+                ];
+            }
         }
 
-        // 3. Crear la Tarea
         $task = Task::create([
             'user_id'     => Auth::id(),
             'title'       => $validated['title'],
             'description' => $validated['description'],
             'due_date'    => $validated['due_date'],
             'priority'    => $validated['priority'],
-            'status'      => 'pending', // Siempre nace pendiente
-            'attachment'  => $rutaArchivo, 
+            'status'      => 'pending',
+            'attachments' => empty($archivosData) ? null : $archivosData, // Inyectamos el JSON
         ]);
 
-        // 4. Conectar las Etiquetas (Muchos a Muchos)
         if (!empty($validated['labels'])) {
             $task->labels()->attach($validated['labels']);
         }
@@ -92,41 +101,55 @@ class TaskController extends Controller
 
         $validated = $request->validate([
             'title' => [
-                'required', 
-                'string', 
-                'max:255',
+                'required', 'string', 'max:255',
                 Rule::unique('tasks')->where('user_id', Auth::id())->ignore($id)->whereNull('deleted_at')
             ],
             'description' => 'nullable|string',
             'due_date'    => 'required|date',
             'priority'    => 'required|string|in:low,medium,high', 
             'status'      => 'required|string|in:pending,in_progress,completed',
-            'attachment'  => 'nullable|file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120',
+            'attachments'   => 'nullable|array|max:5',
+            'attachments.*' => 'file|mimes:pdf,doc,docx,jpg,png,jpeg|max:5120',
+            'retained_files' => 'nullable|array', // Archivos viejos que el usuario NO borró
             'labels'      => 'nullable|array',
             'labels.*'    => 'exists:labels,id'
-        ], [
-            'title.required' => 'El título de la tarea no puede estar vacío.',
-            'title.unique'   => 'Ya tienes una tarea activa con este mismo título.'
         ]);
 
-        // 4. Actualización del archivo adjunto (Si el usuario sube uno nuevo)
-        if ($request->hasFile('attachment')) {
-            if ($task->attachment) {
-                Storage::disk('local')->delete($task->attachment);
+        // 1. Recuperar los archivos viejos que el usuario decidió conservar
+        $archivosFinales = [];
+        $archivosActuales = $task->attachments ?? [];
+        $rutasConservadas = $request->input('retained_files', []);
+
+        foreach ($archivosActuales as $archivoViejo) {
+            if (in_array($archivoViejo['path'], $rutasConservadas)) {
+                $archivosFinales[] = $archivoViejo; // Lo mantenemos
+            } else {
+                // Si no está en conservados, lo borramos físicamente del servidor
+                Storage::disk('local')->delete($archivoViejo['path']);
             }
-            $task->attachment = $request->file('attachment')->store('attachments', 'local');
         }
 
-        // 5. Sobreescribir los datos en la base de datos
+        // 2. Procesar los archivos nuevos (si subió más)
+        if ($request->hasFile('attachments')) {
+            foreach ($request->file('attachments') as $file) {
+                $path = $file->store('attachments', 'local');
+                $archivosFinales[] = [
+                    'original_name' => $file->getClientOriginalName(),
+                    'path' => $path,
+                    'size' => $file->getSize(),
+                ];
+            }
+        }
+
         $task->update([
             'title'       => $validated['title'],
             'description' => $validated['description'],
             'due_date'    => $validated['due_date'],
             'priority'    => $validated['priority'],
             'status'      => $validated['status'],
+            'attachments' => empty($archivosFinales) ? null : $archivosFinales,
         ]);
 
-        // 6. Sincronizar las etiquetas
         if ($request->has('labels')) {
             $task->labels()->sync($validated['labels']);
         } else {
@@ -170,7 +193,7 @@ class TaskController extends Controller
     // ==========================================
     // Descargar/Ver Evidencia
     // ==========================================
-    public function downloadAttachment($id)
+    public function downloadAttachment(Request $request, $id)
     {
         $task = Task::findOrFail($id);
 
@@ -178,38 +201,30 @@ class TaskController extends Controller
             abort(403, 'Acceso denegado. No puedes ver este archivo.');
         }
 
-        if (!$task->attachment) {
-            return redirect('/dashboard')->withErrors(['attachment' => 'Esta tarea no tiene ninguna evidencia adjunta.']);
+        $archivos = $task->attachments ?? [];
+        
+        // Recibimos la ruta del archivo específico por query string (?path=...)
+        $rutaBuscada = $request->query('path');
+        $archivoEncontrado = collect($archivos)->firstWhere('path', $rutaBuscada);
+
+        if (!$archivoEncontrado) {
+            return redirect('/dashboard')->withErrors(['attachments' => 'El archivo solicitado no forma parte de esta tarea.']);
         }
 
-        // 1. El Radar: Definimos los 3 posibles escondites del archivo (retrocompatibilidad)
-        $rutasPosibles = [
-            storage_path('app/' . $task->attachment),         // Nuevo disco 'local' (Por defecto)
-            storage_path('app/public/' . $task->attachment),  // Disco 'public' (Archivos viejos antes del blindaje)
-            storage_path('app/private/' . $task->attachment), // Nuevo disco private (Laravel 11+)
-        ];
-
-        $rutaFinal = null;
-
-        // 2. Buscar en cuál de las 3 bóvedas existe realmente el archivo
-        foreach ($rutasPosibles as $ruta) {
-            if (file_exists($ruta)) {
-                $rutaFinal = $ruta;
-                break; // En cuanto lo encuentre, detiene la búsqueda
-            }
+        $rutaFisica = storage_path('app/private/' . $archivoEncontrado['path']);
+        if(!file_exists($rutaFisica)){
+            $rutaFisica = storage_path('app/' . $archivoEncontrado['path']); 
         }
 
-        // 3. Si lo encontramos, forzamos la descarga blindada con nombre elegante
-        if ($rutaFinal) {
-            $extension = pathinfo($rutaFinal, PATHINFO_EXTENSION);
-            // Convertimos "Mi Tarea Especial!" en "mi-tarea-especial"
-            $nombreLimpio = \Illuminate\Support\Str::slug($task->title);
-            $nombreDescarga = "evidencia_{$nombreLimpio}.{$extension}";
+        if (file_exists($rutaFisica)) {
+            // Usamos el nombre original limpio para la descarga
+            $nombreLimpio = \Illuminate\Support\Str::slug(pathinfo($archivoEncontrado['original_name'], PATHINFO_FILENAME));
+            $extension = pathinfo($archivoEncontrado['original_name'], PATHINFO_EXTENSION);
+            $nombreDescarga = "{$nombreLimpio}.{$extension}";
 
-            return response()->download($rutaFinal, $nombreDescarga);
+            return response()->download($rutaFisica, $nombreDescarga);
         }
 
-        // Si después de buscar en los 3 lugares no está, entonces sí damos el error
-        return redirect('/dashboard')->withErrors(['attachment' => 'El archivo no se encontró en el servidor.']);
+        return redirect('/dashboard')->withErrors(['attachments' => 'El archivo físico no se encontró en el servidor.']);
     }
 }

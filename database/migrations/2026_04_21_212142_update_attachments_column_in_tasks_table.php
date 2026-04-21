@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            // Esto agregará la columna deleted_at
-            $table->softDeletes();
+            $table->dropColumn('attachment');
+            $table->json('attachments')->nullable();
         });
     }
 
     public function down(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
-            // Esto permite dar marcha atrás si se hace un rollback
-            $table->dropSoftDeletes();
+            $table->dropColumn('attachments');
+            $table->string('attachment')->nullable();
         });
     }
 };
