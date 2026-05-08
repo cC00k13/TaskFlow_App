@@ -158,10 +158,10 @@
                             </div>
                         </li>
                     @empty
-                        <div class="empty-state" style="text-align: center; padding: 3rem 1rem;">
-                            <i class="fas fa-clipboard-list" style="font-size: 3rem; color: #d1d5db; margin-bottom: 1rem;"></i>
-                            <p style="color: #6b7280; margin-bottom: 1.5rem; font-weight: 500;">Aún no hay registros</p>
-                            <button type="button" class="btn-primary" onclick="abrirModalNuevaTarea()">
+                        <div class="empty-state" style="text-align: center; padding: 40px 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed #e2e8f0; margin-top: 10px;">
+                            <i class="fas fa-clipboard-list" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 15px;"></i>
+                            <p style="color: #64748b; font-weight: 500; margin-bottom: 15px;">Aún no tienes tareas pendientes.</p>
+                            <button type="button" class="btn-primary" onclick="abrirModalNuevaTarea()" style="padding: 8px 20px; font-size: 0.9rem; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
                                 <i class="fas fa-plus"></i> Crear mi primera tarea
                             </button>
                         </div>
