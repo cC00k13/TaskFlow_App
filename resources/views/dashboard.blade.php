@@ -343,7 +343,7 @@
                     </div>
                     <div class="input-group half">
                         <label class="input-label">FECHA LÍMITE</label>
-                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}" min="{{ date('Y-m-d') }}">
+                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}">
                     </div>
                 </div>
 
