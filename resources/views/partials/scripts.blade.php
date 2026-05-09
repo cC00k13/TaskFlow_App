@@ -206,6 +206,42 @@
     });
 
     // ==========================================
+    // LÓGICA: Menú Desplegable de Colores
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorTrigger = document.getElementById('color-picker-trigger');
+        const colorMenu = document.getElementById('color-picker-menu');
+        
+        if (colorTrigger && colorMenu) {
+            // 1. Abrir/Cerrar el menú al dar clic en el botón
+            colorTrigger.addEventListener('click', (e) => {
+                e.preventDefault(); // Evita que el formulario se envíe por error
+                colorMenu.style.display = (colorMenu.style.display === 'none' || colorMenu.style.display === '') ? 'block' : 'none';
+            });
+
+            // 2. Cerrar el menú si el usuario hace clic en cualquier otro lado de la pantalla (Mejora de UX)
+            document.addEventListener('click', (e) => {
+                if (!colorTrigger.contains(e.target) && !colorMenu.contains(e.target)) {
+                    colorMenu.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // 3. Función para cuando el usuario selecciona un color de la paleta
+    function seleccionarColorVisual(colorHex) {
+        // Guardar el color en el input oculto para la base de datos
+        document.getElementById('input-color-etiqueta').value = colorHex;
+        
+        // Actualizar la vista del botón (círculo y texto)
+        document.getElementById('color-picker-preview').style.backgroundColor = colorHex;
+        document.getElementById('color-picker-text').innerText = colorHex.toUpperCase();
+        
+        // Cerrar el menú desplegable
+        document.getElementById('color-picker-menu').style.display = 'none';
+    }
+    
+    // ==========================================
     // 5. Funciones de Modales (Limpieza Forzada)
     // ==========================================
     function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }

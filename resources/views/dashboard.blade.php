@@ -399,36 +399,82 @@
         </div>
     </div>
 
-    {{-- MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS (Se mantiene igual) --}}
+  {{-- ==========================================
+         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
+         ========================================== --}}
     <div class="modal-overlay" id="label-modal">
         <div class="modal-card modal-sm label-modal-card">
             <div class="modal-header">
                 <h2 id="modal-titulo-etiqueta">Mis Etiquetas</h2>
-                <button class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
+                <button type="button" class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
             </div>
             
             <form action="{{ url('/label/create') }}" method="POST" class="tag-form" id="form-etiqueta">
                 @csrf
                 <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
                 
-                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 15px;">
-                    <div class="input-group" style="margin-bottom: 0;">
+                {{-- Contenedor Flex para alinear Nombre a la izquierda y Color a la derecha --}}
+                <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px;">
+                    
+                    {{-- Grupo NOMBRE --}}
+                    <div class="input-group" style="flex: 2; margin-bottom: 0;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">NOMBRE</label>
                         <div style="position: relative;">
-                            <input type="text" name="nombre" id="input-nombre-etiqueta" required class="modern-input" placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30" style="width: 100%; padding: 10px 45px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; height: 42px; box-sizing: border-box;">
+                            <input type="text" name="nombre" id="input-nombre-etiqueta" required 
+                                   class="modern-input @error('nombre') is-invalid @enderror" 
+                                   placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30"
+                                   style="width: 100%; padding: 10px 45px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; height: 42px; box-sizing: border-box;">
+                            
+                            {{-- Contador flotante --}}
+                            <small id="contador-etiqueta" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.75rem; pointer-events: none;">0/30</small>
                         </div>
+                        
+                        <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; margin-top: 4px;">Límite alcanzado</small>
+                        
+                        @error('nombre')
+                            <div class="validation-error alert-backend" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px;">
+                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                            </div>
+                        @enderror
                     </div>
+
+                    {{-- Grupo COLOR (Menú Desplegable) --}}
                     <div class="input-group" style="flex: 1; margin-bottom: 0; position: relative;">
                         <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">COLOR</label>
+                        
                         <input type="hidden" name="color" id="input-color-etiqueta" value="{{ old('color', '#3b82f6') }}">
-                        <button type="button" id="color-picker-trigger" class="modern-input" style="display: flex; align-items: center; justify-content: space-between; height: 42px; cursor: pointer; padding: 5px 12px; background: white;">
+                        
+                        <button type="button" id="color-picker-trigger" class="modern-input" style="display: flex; align-items: center; justify-content: space-between; height: 42px; cursor: pointer; padding: 5px 12px; background: white; width: 100%; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <span id="color-picker-preview" style="width: 18px; height: 18px; border-radius: 50%; background-color: {{ old('color', '#3b82f6') }};"></span>
-                                <span id="color-picker-text">{{ strtoupper(old('color', '#3B82F6')) }}</span>
+                                <span id="color-picker-text" style="color: #4b5563; font-weight: 500; font-size: 0.85rem;">{{ strtoupper(old('color', '#3B82F6')) }}</span>
                             </div>
+                            <i class="fas fa-chevron-down" style="color: #9ca3af; font-size: 0.8rem;"></i>
                         </button>
+
+                        {{-- EL MENÚ DESPLEGABLE OCULTO CORREGIDO --}}
+                        <div id="color-picker-menu" style="display: none; position: absolute; top: calc(100% + 5px); right: 0; width: 165px; background: white; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; z-index: 999; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center;">
+                                @php
+                                    $colores = [
+                                        '#ef4444', '#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6',
+                                        '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981',
+                                        '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#64748b'
+                                    ];
+                                @endphp
+                                @foreach($colores as $c)
+                                    <button type="button" class="color-swatch" data-color="{{ $c }}" onclick="seleccionarColorVisual('{{ $c }}')" style="width: 22px; height: 22px; border-radius: 50%; background-color: {{ $c }}; border: 2px solid transparent; cursor: pointer; padding: 0; transition: transform 0.1s;"></button>
+                                @endforeach
+
+                                <div style="width: 100%; height: 1px; background-color: #e5e7eb; margin: 4px 0;"></div>
+
+                                <div style="position: relative; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);" title="Color personalizado">
+                                    <input type="color" value="#000000" onchange="seleccionarColorVisual(this.value)" style="position: absolute; top: -10px; left: -10px; width: 50px; height: 50px; cursor: pointer; opacity: 0;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </div> {{-- FIN DEL CONTENEDOR FLEX (Este es el div que faltaba) --}}
                 
                 <button type="submit" class="btn-primary" id="btn-submit-etiqueta" style="width: 100%; padding: 10px; border-radius: 6px; font-weight: 600;">Crear Nueva</button>
                 <button type="button" class="btn-text hide" id="btn-cancelar-etiqueta" onclick="resetearFormularioEtiquetas()" style="width: 100%; padding: 10px; margin-top: 5px; text-align: center; color: #6b7280; background: none; border: none; cursor: pointer;">Cancelar Edición</button>
@@ -446,6 +492,9 @@
                                 <span class="tag-text" style="font-weight: 500; color: #374151;">{{ $etiqueta->name }}</span>
                             </div>
                             <div class="actions" style="display: flex; gap: 10px;">
+                                <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
+                                    <i class="fas fa-pen"></i>
+                                </button>
                                 <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="eliminarEtiquetaAjax(event, this)">
                                     @csrf @method('DELETE')
                                     <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af;"><i class="fas fa-trash"></i></button>
