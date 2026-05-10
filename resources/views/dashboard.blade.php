@@ -374,29 +374,29 @@
                 </div>
 
                 {{-- LA NUEVA SECCIÓN DE MÚLTIPLES ARCHIVOS CON IDS RESTAURADOS --}}
-                <div class="input-group">
-                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIAS (Máx 5)</label>
-                    <input type="file" name="attachments[]" id="file-upload-input" class="file-input modern-input" accept=".pdf,.doc,.docx,.jpg,.png,.jpeg" multiple>
+<div class="input-group">
+    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIAS (Máx 5)</label>
+    <input type="file" name="attachments[]" id="file-upload-input" class="file-input modern-input" accept=".pdf,.doc,.docx,.jpg,.png,.jpeg" multiple>
 
-                    <div id="archivo-actual-container" style="display: none; margin-top: 12px;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 6px; display: block;">ARCHIVOS GUARDADOS EN LA TAREA:</label>
-                        <ul id="existing-files-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
-                    </div>
+    <div id="archivo-actual-container" style="display: none; margin-top: 12px;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 6px; display: block;">ARCHIVOS GUARDADOS EN LA TAREA:</label>
+        <ul id="existing-files-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
+    </div>
 
-                    <div id="new-files-container" style="display: none; margin-top: 12px;">
-                        <label style="font-size: 0.75rem; font-weight: bold; color: #0ea5e9; margin-bottom: 6px; display: block;">NUEVOS ARCHIVOS A SUBIR:</label>
-                        <ul id="file-preview-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
-                    </div>
-                    
-                    @if($errors->any())
-                        <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
-                            <i class="fas fa-exclamation-triangle"></i> Por seguridad, <strong>debes volver a seleccionar tus nuevos archivos</strong>.
-                        </div>
-                    @endif
-                    @error('attachments.*')
-                        <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">{{ $message }}</span>
-                    @enderror
-                </div>
+    <div id="new-files-container" style="display: none; margin-top: 12px;">
+        <label style="font-size: 0.75rem; font-weight: bold; color: #0ea5e9; margin-bottom: 6px; display: block;">NUEVOS ARCHIVOS A SUBIR:</label>
+        <ul id="file-preview-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
+    </div>
+
+    @if($errors->any())
+        <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
+            <i class="fas fa-exclamation-triangle"></i> Por seguridad, <strong>debes volver a seleccionar tus nuevos archivos</strong>.
+        </div>
+    @endif
+    @error('attachments.*')
+        <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">{{ $message }}</span>
+    @enderror
+</div>
 
                 <div class="form-actions">
                     <button type="button" class="btn-text" onclick="cerrarModal('task-modal')">Cancelar</button>
@@ -569,21 +569,46 @@
         }
 
         function eliminarArchivoNuevo(index) {
-            const tempDT = new DataTransfer();
-            for(let i = 0; i < modalDataTransfer.files.length; i++) {
-                if(i !== index) tempDT.items.add(modalDataTransfer.files[i]);
-            }
-            modalDataTransfer = tempDT; 
-            document.getElementById('file-upload-input').files = modalDataTransfer.files; 
-            renderizarArchivosNuevos(); 
+        const tempDT = new DataTransfer();
+        for(let i = 0; i < modalDataTransfer.files.length; i++) {
+            if(i !== index) tempDT.items.add(modalDataTransfer.files[i]);
         }
+        modalDataTransfer = tempDT; 
+        document.getElementById('file-upload-input').files = modalDataTransfer.files; 
+        renderizarArchivosNuevos(); 
+    }
 
         function eliminarArchivoViejo(index) {
-            document.getElementById('existing-file-' + index).remove();
-            if(document.querySelectorAll('.existing-file-item').length === 0) {
-                document.getElementById('archivo-actual-container').style.display = 'none';
+        document.getElementById('existing-file-' + index).remove();
+
+        // FIX: Actualizar el array de retained_files[] después de eliminar
+        // Reconstruir todos los inputs hidden para que el servidor sepa qué conservar
+        const container = document.getElementById('existing-files-list');
+        const items = container.querySelectorAll('.existing-file-item');
+
+        // Limpiar y reconstruir inputs hidden
+        items.forEach(function(item) {
+            // Remover input hidden viejo si existe
+            const oldInput = item.querySelector('input[name="retained_files[]"]');
+            if(oldInput) oldInput.remove();
+        });
+
+        // Recrear inputs hidden con los paths correctos de los items restantes
+        items.forEach(function(item) {
+            const path = item.getAttribute('data-path');
+            if(path) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'retained_files[]';
+                input.value = path;
+                item.appendChild(input);
             }
+        });
+
+        if(document.querySelectorAll('.existing-file-item').length === 0) {
+            document.getElementById('archivo-actual-container').style.display = 'none';
         }
+    }
 
         document.addEventListener('click', function(e) {
             const contentClick = e.target.closest('.content');
