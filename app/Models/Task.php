@@ -2,69 +2,37 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Task extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
-    protected $fillable = ['titulo', 'descripcion', 'estado', 'fecha_entrega', 'user_id'];
-
-    protected $casts = [
-        'completed_at' => 'datetime',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+    // Cambiamos 'attachment' por 'attachments'
+    protected $fillable = [
+        'user_id', 
+        'title', 
+        'description', 
+        'due_date', 
+        'priority', 
+        'status', 
+        'attachments' 
     ];
 
-    protected static function booted(): void
-    {
-        static::saving(function (Task $task) {
-            if ($task->isDirty('estado')) {
-                $task->completed_at = $task->status === 'completado' 
-                    ? now() 
-                    : null;
-            }
-        });
-    }
+    // Magia de Eloquent: Convierte el JSON de la BD a un Array de PHP automáticamente
+    protected $casts = [
+        'attachments' => 'array',
+    ];
 
-    public function user(): BelongsTo
+    public function labels()
+    {
+        return $this->belongsToMany(Label::class);
+    }
+    
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
-
-    public function scopeChronological($query)
-    {
-        return $query->latest('fecha_creacion');
-    }
-
-    public function scopeOldestFirst($query)
-    {
-        return $query->oldest('fecha_creacion');
-    }
-
-    public function scopePending($query)
-    {
-        return $query->where('estado', 'pendiente');
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('estado', 'completado');
-    }
-
-    // Accessor for quick status check
-    public function getIsCompletedAttribute(): bool
-    {
-        return $this->estado === 'completado';
-    }
-
-    public function tags(): BelongsToMany
-    {          
-        return $this->belongsToMany(Tag::class);
-    }
-
-    
 }

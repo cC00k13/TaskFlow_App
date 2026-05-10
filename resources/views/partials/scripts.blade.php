@@ -1,0 +1,570 @@
+<script>
+    const FECHA_HOY = "{{ date('Y-m-d') }}";
+
+    // ==========================================
+    // CONFIGURACIÓN GLOBAL DE SWEETALERT
+    // ==========================================
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3500,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
+    // ==========================================
+    // 1. Lógica de "Borrador" y Alertas Globales
+    // ==========================================
+    document.addEventListener("DOMContentLoaded", function() {
+        // Mostrar notificación de éxito moderna
+        @if(session('success'))
+            Toast.fire({ icon: 'success', title: "{{ session('success') }}" });
+        @endif
+
+        // Lógica de Errores
+        @if($errors->any())
+            // 1. Mostrar alerta general
+            Swal.fire({
+                icon: 'error',
+                title: '¡Hay un problema!',
+                text: 'Por favor, revisa los campos marcados en rojo en el formulario.',
+                confirmButtonColor: '#2563eb', // Azul TaskFlow
+                backdrop: `rgba(0,0,0,0.4)`
+            });
+
+            // 2. Reabrir el modal correcto con los datos del borrador
+            @if($errors->has('nombre') || $errors->has('color'))
+                abrirModalEtiquetas();
+            @else
+                const modal = document.getElementById('task-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    if("{{ old('_method') }}" === "PUT") {
+                        document.getElementById('modal-titulo-principal').innerText = 'Corregir Tarea';
+                        document.getElementById('btn-submit-tarea').innerText = 'Actualizar Cambios';
+                    }
+                }
+            @endif
+        @endif
+    });
+
+    // ==========================================
+    // 2. Lógica de Contador de Caracteres (Etiquetas)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const inputNombre = document.getElementById('input-nombre-etiqueta');
+        const contador = document.getElementById('contador-etiqueta');
+        const mensajeLimite = document.getElementById('mensaje-limite-etiqueta');
+        const limite = 30;
+
+        if(inputNombre && contador && mensajeLimite) {
+            const actualizarContador = () => {
+                const longitudActual = inputNombre.value.length;
+                contador.innerText = `${longitudActual}/${limite}`;
+
+                if (longitudActual >= limite) {
+                    contador.style.color = '#ef4444';
+                    contador.style.fontWeight = 'bold';
+                    mensajeLimite.style.display = 'block';
+                } else {
+                    contador.style.color = '#9ca3af';
+                    contador.style.fontWeight = 'normal';
+                    mensajeLimite.style.display = 'none';
+                }
+            };
+
+            inputNombre.addEventListener('input', actualizarContador);
+            actualizarContador(); 
+        }
+    });
+
+    // ==========================================
+    // 3. Lógica de la Paleta de Colores (Menú Desplegable)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const swatches = document.querySelectorAll('.color-swatch');
+        const hiddenColorInput = document.getElementById('input-color-etiqueta');
+        const customColorPicker = document.getElementById('custom-color-picker');
+        const customWrapper = document.querySelector('.custom-color-wrapper');
+        const triggerBtn = document.getElementById('color-picker-trigger');
+        const previewCircle = document.getElementById('color-picker-preview');
+        const previewText = document.getElementById('color-picker-text');
+        const dropdown = document.getElementById('color-picker-dropdown');
+
+        if(triggerBtn) {
+            triggerBtn.addEventListener('click', function(e) {
+                e.preventDefault(); 
+                dropdown.classList.toggle('hide');
+                triggerBtn.classList.toggle('is-open');
+            });
+        }
+
+        document.addEventListener('click', function(e) {
+            if (triggerBtn && dropdown && !triggerBtn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hide');
+                triggerBtn.classList.remove('is-open');
+            }
+        });
+
+        function selectColor(colorHex, isCustom = false) {
+            if(!hiddenColorInput) return;
+            hiddenColorInput.value = colorHex; 
+
+            if(previewCircle) previewCircle.style.backgroundColor = colorHex;
+            if(previewText) previewText.innerText = colorHex.toUpperCase();
+
+            swatches.forEach(s => s.classList.remove('selected'));
+            if(customWrapper) customWrapper.classList.remove('selected');
+
+            if (!isCustom) {
+                const swatchToSelect = Array.from(swatches).find(s => s.getAttribute('data-color') === colorHex);
+                if (swatchToSelect) {
+                    swatchToSelect.classList.add('selected');
+                } else {
+                    if(customWrapper) customWrapper.classList.add('selected');
+                    if(customColorPicker) customColorPicker.value = colorHex;
+                }
+            } else {
+                if(customWrapper) customWrapper.classList.add('selected');
+            }
+            
+            if(!isCustom && dropdown) {
+                dropdown.classList.add('hide');
+                if(triggerBtn) triggerBtn.classList.remove('is-open');
+            }
+        }
+
+        swatches.forEach(swatch => {
+            swatch.addEventListener('click', function() {
+                selectColor(this.getAttribute('data-color'));
+            });
+        });
+
+        if(customColorPicker) {
+            customColorPicker.addEventListener('input', function() {
+                selectColor(this.value, true);
+            });
+        }
+
+        window.setEtiquetaColorUI = selectColor;
+    });
+
+    // ==========================================
+    // 4. Lógica Drag and Drop (Kanban)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const sortableOptions = {
+            group: 'tareas', 
+            animation: 150, 
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost', 
+            onEnd: function (evt) {
+                const itemEl = evt.item;  
+                const toList = evt.to;    
+                const taskId = itemEl.getAttribute('data-id');
+                const newStatus = toList.getAttribute('data-status');
+                
+                const checkbox = itemEl.querySelector('.task-check');
+                const hiddenInput = itemEl.querySelector('input[name="status"]'); 
+                const contentDiv = itemEl.querySelector('.content'); 
+
+                if(contentDiv) contentDiv.setAttribute('data-estado', newStatus);
+
+                if (newStatus === 'completed') {
+                    itemEl.classList.add('completed');
+                    itemEl.style.borderLeftColor = ''; 
+                    if(checkbox) { checkbox.checked = true; checkbox.title = "Devolver a pendientes"; }
+                    if(hiddenInput) hiddenInput.value = 'pending'; 
+                } else {
+                    itemEl.classList.remove('completed');
+                    itemEl.style.borderLeftColor = (newStatus === 'in_progress') ? '#0284c7' : ''; 
+                    if(checkbox) { checkbox.checked = false; checkbox.title = "Marcar como completada"; }
+                    if(hiddenInput) hiddenInput.value = 'completed';
+                }
+
+                if (evt.from !== toList) {
+                    fetch(`/tareas/${taskId}/estado-ajax`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        },
+                        body: JSON.stringify({ status: newStatus })
+                    }).catch(error => console.error('Error:', error));
+                }
+            }
+        };
+
+        ['list-pending', 'list-in_progress', 'list-completed'].forEach(id => {
+            const el = document.getElementById(id);
+            if(el) new Sortable(el, sortableOptions);
+        });
+    });
+
+    // ==========================================
+    // LÓGICA: Menú Desplegable de Colores
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const colorTrigger = document.getElementById('color-picker-trigger');
+        const colorMenu = document.getElementById('color-picker-menu');
+        
+        if (colorTrigger && colorMenu) {
+            // 1. Abrir/Cerrar el menú al dar clic en el botón
+            colorTrigger.addEventListener('click', (e) => {
+                e.preventDefault(); // Evita que el formulario se envíe por error
+                colorMenu.style.display = (colorMenu.style.display === 'none' || colorMenu.style.display === '') ? 'block' : 'none';
+            });
+
+            // 2. Cerrar el menú si el usuario hace clic en cualquier otro lado de la pantalla (Mejora de UX)
+            document.addEventListener('click', (e) => {
+                if (!colorTrigger.contains(e.target) && !colorMenu.contains(e.target)) {
+                    colorMenu.style.display = 'none';
+                }
+            });
+        }
+    });
+
+    // 3. Función para cuando el usuario selecciona un color de la paleta
+    function seleccionarColorVisual(colorHex) {
+        // Guardar el color en el input oculto para la base de datos
+        document.getElementById('input-color-etiqueta').value = colorHex;
+        
+        // Actualizar la vista del botón (círculo y texto)
+        document.getElementById('color-picker-preview').style.backgroundColor = colorHex;
+        document.getElementById('color-picker-text').innerText = colorHex.toUpperCase();
+        
+        // Cerrar el menú desplegable
+        document.getElementById('color-picker-menu').style.display = 'none';
+    }
+    
+    // ==========================================
+    // 5. Funciones de Modales (Limpieza Forzada)
+    // ==========================================
+    function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
+    
+    function abrirModalEtiquetas() { 
+        if(window.setEtiquetaColorUI && !document.getElementById('input-color-etiqueta').value) {
+             window.setEtiquetaColorUI('#3b82f6');
+        }
+        document.getElementById('label-modal').style.display = 'flex'; 
+    }
+
+    function editarEtiqueta(id, nombre, color) {
+        document.getElementById('modal-titulo-etiqueta').innerText = 'Editar Etiqueta';
+        document.getElementById('form-etiqueta').action = '/labels/' + id;
+        document.getElementById('metodo-etiqueta').value = 'PUT';
+        document.getElementById('input-nombre-etiqueta').value = nombre;
+        if(window.setEtiquetaColorUI) window.setEtiquetaColorUI(color);
+        document.getElementById('btn-submit-etiqueta').innerText = 'Guardar Cambios';
+        document.getElementById('btn-cancelar-etiqueta').classList.remove('hide');
+        document.getElementById('input-nombre-etiqueta').focus();
+        document.getElementById('input-nombre-etiqueta').dispatchEvent(new Event('input'));
+    }
+
+    function resetearFormularioEtiquetas() {
+        const form = document.getElementById('form-etiqueta');
+        document.getElementById('modal-titulo-etiqueta').innerText = 'Mis Etiquetas';
+        form.action = '{{ url('/label/create') }}';
+        document.getElementById('metodo-etiqueta').value = 'POST';
+        
+        const inputName = document.getElementById('input-nombre-etiqueta');
+        if(inputName) {
+            inputName.value = ''; 
+            inputName.classList.remove('is-invalid');
+            inputName.dispatchEvent(new Event('input')); 
+        }
+
+        if(window.setEtiquetaColorUI) window.setEtiquetaColorUI('#3b82f6'); 
+
+        document.getElementById('btn-submit-etiqueta').innerText = 'Crear Nueva';
+        document.getElementById('btn-cancelar-etiqueta').classList.add('hide');
+        
+        document.querySelectorAll('#form-etiqueta .validation-error, #form-etiqueta .alert-backend').forEach(el => el.style.display = 'none');
+    }
+
+    function abrirModalNuevaTarea() {
+        const form = document.getElementById('form-tarea');
+        document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
+        form.action = '{{ url('/task/create') }}';
+        document.getElementById('metodo-formulario').value = 'POST';
+        
+        document.getElementById('input-titulo').value = '';
+        document.getElementById('input-descripcion').value = '';
+        document.getElementById('input-fecha').value = '';
+        document.getElementById('input-prioridad').value = 'medium'; 
+        document.getElementById('input-estado').value = 'pending'; 
+        
+        const fileInput = form.querySelector('input[type="file"]');
+        if(fileInput) fileInput.value = ''; 
+
+        document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
+        document.getElementById('input-fecha').setAttribute('min', FECHA_HOY);
+        document.getElementById('archivo-actual-container').style.display = 'none';
+
+        document.querySelectorAll('.label-checkbox-input').forEach(cb => cb.checked = false);
+        
+        document.querySelectorAll('#form-tarea .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('#form-tarea .validation-error').forEach(el => el.style.display = 'none');
+        
+        const avisoArchivo = form.querySelector('.fa-exclamation-triangle')?.parentElement;
+        if(avisoArchivo) avisoArchivo.style.display = 'none';
+
+        document.getElementById('task-modal').style.display = 'flex';
+    }
+
+    function abrirModalEditar(elemento) {
+        document.getElementById('modal-titulo-principal').innerText = 'Editar Tarea';
+        document.getElementById('form-tarea').action = '/task/' + elemento.getAttribute('data-id');
+        document.getElementById('metodo-formulario').value = 'PUT';
+        
+        let fechaLimite = elemento.getAttribute('data-fecha_limite');
+        document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
+        document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
+        document.getElementById('input-fecha').value = fechaLimite;
+        document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
+        document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
+        
+        let nombreArchivo = elemento.getAttribute('data-archivo');
+        document.getElementById('archivo-actual-container').style.display = nombreArchivo ? 'block' : 'none';
+        if(nombreArchivo) document.getElementById('nombre-archivo-actual').innerText = nombreArchivo;
+
+        let etiquetas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
+        document.querySelectorAll('.label-checkbox-input').forEach(checkbox => {
+            checkbox.checked = etiquetas.includes(parseInt(checkbox.value));
+        });
+
+        document.querySelectorAll('#form-tarea .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('#form-tarea .validation-error').forEach(el => el.style.display = 'none');
+        const avisoArchivo = document.getElementById('form-tarea').querySelector('.fa-exclamation-triangle')?.parentElement;
+        if(avisoArchivo) avisoArchivo.style.display = 'none';
+
+        document.getElementById('btn-submit-tarea').innerText = 'Actualizar Cambios';
+        document.getElementById('task-modal').style.display = 'flex';
+    }
+
+    window.onclick = function(event) {
+        if (event.target.className === 'modal-overlay') {
+            event.target.style.display = 'none';
+        }
+    }
+
+    // ==========================================
+    // 6. Prevención de envíos múltiples (Spam de clics)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('form').forEach(form => {
+            form.addEventListener('submit', function(e) {
+                // Ignorar formularios manejados por SweetAlert
+                if (this.getAttribute('onsubmit') && this.getAttribute('onsubmit').includes('confirmarEliminacion')) {
+                    return; 
+                }
+                
+                // Buscar el botón principal de guardar (ignorando botones de ícono como los de borrar)
+                const btn = this.querySelector('button[type="submit"]:not(.btn-icon)');
+                if(btn) {
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+                    btn.style.pointerEvents = 'none';
+                    btn.style.opacity = '0.7';
+                }
+            });
+        });
+    });
+
+    // ==========================================
+    // 7. Alertas Modernas (SweetAlert2)
+    // ==========================================
+    function confirmarEliminacion(event, formulario, tipo) {
+        event.preventDefault(); // Evitar envío automático
+
+        let titulo = tipo === 'etiqueta' ? '¿Eliminar etiqueta?' : '¿Eliminar tarea?';
+        let texto = tipo === 'etiqueta' 
+            ? 'Se desvinculará de todas las tareas. Esta acción no se puede deshacer.' 
+            : 'Esta tarea será enviada a la papelera.';
+
+        Swal.fire({
+            title: titulo,
+            text: texto,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444', // Rojo peligro
+            cancelButtonColor: '#6b7280',  // Gris neutro
+            confirmButtonText: '<i class="fas fa-trash"></i> Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            backdrop: `rgba(0,0,0,0.4)`
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.showLoading();
+                formulario.submit();
+            }
+        });
+    }
+    
+    // ==========================================
+    // 8. Gestor de Archivos Múltiples (DataTransfer)
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('file-upload-input');
+        const previewList = document.getElementById('file-preview-list');
+        
+        // DataTransfer es un objeto nativo que nos permite manipular listas de archivos
+        let dt = new DataTransfer(); 
+
+        if(fileInput && previewList) {
+            fileInput.addEventListener('change', function(e) {
+                // Al seleccionar nuevos archivos, los agregamos a nuestro DataTransfer
+                for(let i = 0; i < this.files.length; i++) {
+                    dt.items.add(this.files[i]);
+                }
+                actualizarUIArchivos();
+            });
+
+            function actualizarUIArchivos() {
+                // Sincronizamos el input oculto con nuestra lista personalizada
+                fileInput.files = dt.files; 
+                previewList.innerHTML = ''; // Limpiamos la lista visual
+
+                for(let i = 0; i < dt.files.length; i++) {
+                    const file = dt.files[i];
+                    const li = document.createElement('li');
+                    li.className = 'file-preview-item animate__animated animate__fadeIn animate__faster';
+                    
+                    // Calculamos el tamaño para mostrarlo bonito (KB o MB)
+                    let sizeStr = (file.size / 1024).toFixed(1) + ' KB';
+                    if (file.size > 1024 * 1024) sizeStr = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+
+                    li.innerHTML = `
+                        <div class="file-info">
+                            <i class="fas fa-file-alt text-muted"></i>
+                            <span class="file-name" title="${file.name}">${file.name}</span>
+                            <span class="text-muted" style="font-size: 0.75rem;">(${sizeStr})</span>
+                        </div>
+                        <button type="button" class="remove-file-btn" data-index="${i}" title="Quitar archivo">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    `;
+                    previewList.appendChild(li);
+                }
+
+                // Agregamos el evento de eliminar a cada botón "X" que acabamos de crear
+                document.querySelectorAll('.remove-file-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const index = parseInt(this.getAttribute('data-index'));
+                        dt.items.remove(index); // Lo quitamos del DataTransfer
+                        actualizarUIArchivos(); // Recargamos la interfaz
+                    });
+                });
+            }
+
+            // Es importante limpiar el DataTransfer cuando se abre el modal para una NUEVA tarea
+            window.limpiarArchivosUI = function() {
+                dt = new DataTransfer();
+                actualizarUIArchivos();
+                document.getElementById('existing-files-list').innerHTML = ''; // Limpiar existentes
+            }
+        }
+    });
+    // ==========================================
+    // Eliminación de Etiquetas sin Recargar (AJAX)
+    // ==========================================
+    function eliminarEtiquetaAjax(event, form) {
+        event.preventDefault(); // Evita que la página se recargue
+        
+        Swal.fire({
+            title: '¿Eliminar etiqueta?',
+            text: "Se quitará esta etiqueta de la lista.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            backdrop: `rgba(15, 23, 42, 0.6)`
+        }).then((result) => {
+            if (result.isConfirmed) {
+                
+                // Hacemos la petición silenciosa al servidor
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest', // Le dice a Laravel que es AJAX
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if(data.success) {
+                        // 1. Efecto visual: Deslizar y desvanecer la fila
+                        const filaEtiqueta = form.closest('li');
+                        filaEtiqueta.style.transition = "all 0.3s ease-out";
+                        filaEtiqueta.style.opacity = "0";
+                        filaEtiqueta.style.transform = "translateX(50px)";
+                        
+                        // 2. Esperar que termine la animación (0.3s) y borrar del HTML
+                        setTimeout(() => {
+                            filaEtiqueta.remove();
+                            
+                            // 3. Si ya no quedan etiquetas, mostrar el mensaje de "Vacío"
+                            const lista = document.querySelector('.tag-list-manager');
+                            if(lista.children.length === 0) {
+                                lista.innerHTML = '<p class="text-center" style="padding: 20px; font-style: italic; color: #9ca3af; font-size: 0.9rem;">No hay etiquetas creadas.</p>';
+                            }
+                        }, 300);
+
+                        // 4. Mostrar pequeña notificación de éxito (Toast)
+                        Swal.fire({
+                            toast: true,
+                            position: 'top-end',
+                            icon: 'success',
+                            title: 'Etiqueta eliminada',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    Swal.fire('Error', 'Hubo un problema al intentar eliminar.', 'error');
+                });
+            }
+        });
+    }
+    // ==========================================
+    // Buscador en Tiempo Real de Etiquetas
+    // ==========================================
+    document.addEventListener('DOMContentLoaded', function() {
+        const buscadorEtiquetas = document.getElementById('buscador-etiquetas');
+        
+        if(buscadorEtiquetas) {
+            buscadorEtiquetas.addEventListener('input', function(e) {
+                // Convertimos el texto a minúsculas para que la búsqueda no sea sensible a mayúsculas
+                const terminoBusqueda = e.target.value.toLowerCase().trim();
+                const etiquetasWrappers = document.querySelectorAll('.label-checkbox-wrapper');
+                let etiquetasVisibles = 0;
+
+                etiquetasWrappers.forEach(wrapper => {
+                    // Extraemos el texto de la etiqueta
+                    const textoEtiqueta = wrapper.querySelector('.label-text-content').innerText.toLowerCase();
+                    
+                    // Si el texto incluye lo que escribimos, la mostramos; si no, la ocultamos
+                    if (textoEtiqueta.includes(terminoBusqueda)) {
+                        wrapper.style.display = ''; // Restaura el display original (inline-flex)
+                        etiquetasVisibles++;
+                    } else {
+                        wrapper.style.display = 'none'; // La oculta
+                    }
+                });
+
+                // Si ninguna etiqueta coincide, mostramos el mensaje de "No se encontraron etiquetas"
+                const msgVacio = document.getElementById('msg-busqueda-vacia');
+                if (msgVacio) {
+                    msgVacio.style.display = (etiquetasVisibles === 0 && etiquetasWrappers.length > 0) ? 'block' : 'none';
+                }
+            });
+        }
+    });
+</script>

@@ -6,29 +6,50 @@
     <title>TaskFlow - Mis Tareas</title>
     <link rel="stylesheet" href="{{ asset('css/dashboard.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <style>
+        /* ESTILOS PARA LA UI DE MÚLTIPLES ARCHIVOS */
+        .file-preview-item { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px 12px; margin-bottom: 6px; }
+        .file-preview-info { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #334155; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; flex: 1; }
+        .file-remove-btn { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 1rem; padding: 4px; transition: color 0.2s; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; }
+        .file-remove-btn:hover { color: #b91c1c; background: #fee2e2; }
+        .existing-file-item { background: #f1f5f9; border-color: #cbd5e1; }
+    </style>
 </head>
 <body>
     
-    {{-- Notificación de Éxito --}}
-    @if(session('success'))
-    <div id="toast-exito" class="toast-notification">
-        <i class="fas fa-check-circle"></i> 
-        <span>{{ session('success') }}</span>
-    </div>
-    <script>setTimeout(() => { let t = document.getElementById('toast-exito'); if(t) { t.style.opacity = '0'; setTimeout(() => t.remove(), 500); } }, 3500);</script>
-    @endif
-
-    {{-- Lógica para separar y contar tareas --}}
     @php
-        $listaTareas = collect($tareas ?? []);
-        $pendientes = $listaTareas->where('estado', '!=', 'completada');
-        $completadas = $listaTareas->where('estado', 'completada');
+        $listaTareas = collect($tasks ?? []);
+
+        $prioridadFiltro = request('filter_priority', 'todas');
+        if($prioridadFiltro !== 'todas') {
+            $listaTareas = $listaTareas->where('priority', $prioridadFiltro);
+        }
+
+        $orden = request('ordenar_por', 'fecha_asc');
+        
+        $ordenarPorFechaAsc = function($tarea) { return empty($tarea->due_date) ? '9999-12-31' : $tarea->due_date; };
+        $ordenarPorFechaDesc = function($tarea) { return empty($tarea->due_date) ? '0000-00-00' : $tarea->due_date; };
+
+        if($orden === 'fecha_desc') {
+            $listaTareas = $listaTareas->sortByDesc($ordenarPorFechaDesc);
+        } elseif($orden === 'mas_recientes') {
+            $listaTareas = $listaTareas->reverse(); 
+        } else {
+            $listaTareas = $listaTareas->sortBy($ordenarPorFechaAsc);
+        }
+
+        $pendientes = $listaTareas->where('status', 'pending');
+        $enProgreso = $listaTareas->where('status', 'in_progress');
+        $completadas = $listaTareas->where('status', 'completed');
     @endphp
 
     <main class="dashboard-container">
         <div class="dashboard-card">
-            
-            {{-- Encabezado --}}
             <header class="header">
                 <div class="brand">
                     <h2>TaskFlow.</h2>
@@ -36,161 +57,283 @@
                 </div>
                 <div class="user-info">
                     <span class="greeting">Hola, <strong>{{ auth()->user()->name ?? 'Usuario' }}</strong></span>
-                    <button class="btn-outline" onclick="abrirModalEtiquetas()">
-                        <i class="fas fa-tags"></i> Mis Etiquetas
-                    </button>
-                    <form action="{{ route('logout') }}" method="POST" style="display: inline;">
+                    <button class="btn-outline" onclick="abrirModalEtiquetas()"><i class="fas fa-tags"></i> Mis Etiquetas</button>
+                    <form action="{{ route('logout') }}" method="POST" class="form-inline" style="display: inline;">
                         @csrf
                         <button type="submit" class="logout-icon" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
                     </form>
                 </div>
             </header>
 
-            {{-- Barra de Controles --}}
             <section class="controls">
                 <div class="search-bar">
                     <i class="fas fa-search search-icon"></i>
                     <input type="text" placeholder="Buscar tareas...">
-                    <button class="btn-primary" onclick="abrirModalNuevaTarea()">
-                        <i class="fas fa-plus"></i> Nueva Tarea
-                    </button>
+                    <button class="btn-primary" onclick="abrirModalNuevaTarea()"><i class="fas fa-plus"></i> Nueva Tarea</button>
                 </div>
                 
                 <div class="filters-and-summary">
-                    {{-- AQUÍ ESTÁ EL SELECTOR "ORDENAR POR" RESTAURADO --}}
                     <div class="filter-bar">
-                        <label><i class="fas fa-sort-amount-down"></i> Ordenar por:</label>
-                        <select class="select-ordenar">
-                            <option selected>Más próximas a vencer</option>
-                            <option>Más recientes</option>
-                            <option>Prioridad más alta</option>
-                        </select>
+                        <form action="{{ route('dashboard') }}" method="GET" class="form-inline" style="display: flex; gap: 10px; align-items: center;" id="form-filtros">
+                            <input type="hidden" name="ordenar_por" id="input-orden-actual" value="{{ $orden }}">
+                            <label><i class="fas fa-filter"></i> Prioridad:</label>
+                            <select name="filter_priority" class="select-ordenar" onchange="document.getElementById('form-filtros').submit();" style="min-width: 120px;">
+                                <option value="todas" {{ $prioridadFiltro == 'todas' ? 'selected' : '' }}>Todas</option>
+                                <option value="high" {{ $prioridadFiltro == 'high' ? 'selected' : '' }}>Alta</option>
+                                <option value="medium" {{ $prioridadFiltro == 'medium' ? 'selected' : '' }}>Media</option>
+                                <option value="low" {{ $prioridadFiltro == 'low' ? 'selected' : '' }}>Baja</option>
+                            </select>
+
+                            @php
+                                $siguienteOrden = ($orden == 'fecha_asc') ? 'fecha_desc' : 'fecha_asc';
+                                $iconoOrden = ($orden == 'fecha_asc') ? 'fa-sort-numeric-down' : 'fa-sort-numeric-up-alt';
+                            @endphp
+                            
+                            <button type="button" class="btn-outline" style="display: flex; gap: 8px; align-items: center; background: white;" title="Alternar orden" onclick="document.getElementById('input-orden-actual').value = '{{ $siguienteOrden }}'; document.getElementById('form-filtros').submit();">
+                                <i class="fas {{ $iconoOrden }}" style="color: var(--primary);"></i> 
+                                <span>{{ $orden == 'fecha_asc' ? 'Próximas a vencer' : 'Más lejanas a vencer' }}</span>
+                            </button>
+                        </form>
                     </div>
-                    
-                    <span class="badge-pending">{{ $pendientes->count() }} Tareas Pendientes</span>
+                    <span class="badge-pending">{{ $pendientes->count() + $enProgreso->count() }} Tareas Activas</span>
                 </div>
             </section>
 
-            {{-- Sección: Tareas Pendientes --}}
+            {{-- SECCIÓN 1: PENDIENTES --}}
             <section class="task-section">
-                <h3 class="section-title">En Curso</h3>
-                <ul class="task-list">
+                <h3 class="section-title">Pendientes</h3>
+                <ul class="task-list sortable-list" id="list-pending" data-status="pending" style="min-height: 50px; padding-bottom: 20px;">
                     @forelse($pendientes as $tarea)
-                        <li class="task-item">
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                        <li class="task-item draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
-                                <input type="hidden" name="estado" value="completada">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Marcar como completada">
+                                <input type="hidden" name="status" value="completed">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
                             </form>
-
+                            
                             <div class="content" onclick="abrirModalEditar(this)" 
-                                 data-id="{{ $tarea->id ?? '' }}" data-titulo="{{ $tarea->titulo ?? '' }}" 
-                                 data-descripcion="{{ $tarea->descripcion ?? '' }}" data-fecha_limite="{{ $tarea->fecha_limite ?? '' }}" 
-                                 data-prioridad="{{ $tarea->prioridad ?? 'media' }}" data-estado="{{ $tarea->estado ?? 'pendiente' }}"
-                                 data-etiquetas="{{ json_encode(isset($tarea->etiquetas) ? $tarea->etiquetas->pluck('id') : []) }}">
-                                
-                                <span class="title">{{ $tarea->titulo }}</span>
-                                
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="" 
+                                data-archivos="{{ json_encode($tarea->attachments ?? []) }}">
+
+                                <span class="title">{{ $tarea->title }}</span>
                                 <div class="tags">
-                                    <span class="tag priority-{{ strtolower($tarea->prioridad ?? 'media') }}">{{ strtoupper($tarea->prioridad ?? 'MEDIA') }}</span>
-                                    
-                                    @foreach($tarea->etiquetas ?? [] as $etiqueta)
-                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }};">{{ $etiqueta->nombre }}</span>
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">
+                                        @if($tarea->priority == 'high') ALTA @elseif($tarea->priority == 'low') BAJA @else MEDIA @endif
+                                    </span>
+                                    @foreach($tarea->labels ?? [] as $etiqueta)
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
                                     @endforeach
                                 </div>
-
                                 <div class="task-meta">
-                                    @if(!empty($tarea->fecha_limite))
-                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->fecha_limite)->isPast() ? 'overdue' : '' }}">
-                                            <i class="far fa-clock"></i> {{ $tarea->fecha_limite }}
+                                    @if(!empty($tarea->due_date))
+                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
+                                            <i class="far fa-clock"></i> {{ $tarea->due_date }}
                                         </span>
                                     @endif
-                                    @if(!empty($tarea->documento))
-                                        <span class="meta-file"><i class="fas fa-paperclip"></i> Archivo adjunto</span>
+                                    
+                                    @if(!empty($tarea->attachments) && is_array($tarea->attachments))
+                                        <div class="task-evidences" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                                            @foreach($tarea->attachments as $adjunto)
+                                                <a href="{{ url('/task/' . $tarea->id . '/download?path=' . urlencode($adjunto['path'])) }}" target="_blank" class="meta-file" title="{{ $adjunto['original_name'] }}" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-size: 0.75rem; background: #eff6ff; padding: 4px 8px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                                                    <i class="fas fa-file-alt"></i> {{ \Illuminate\Support\Str::limit($adjunto['original_name'], 15) }}
+                                                </a>
+                                            @endforeach
+                                        </div>
                                     @endif
                                 </div>
                             </div>
                             
                             <div class="actions">
                                 <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
-                                <form action="/tareas/{{ $tarea->id ?? 0 }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
-                                    @csrf @method('DELETE')
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
+                                @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
                         </li>
                     @empty
-                        <div class="empty-state">
-                            <i class="fas fa-check-circle"></i>
-                            <p>¡Todo al día! No tienes tareas pendientes.</p>
+                        <div class="empty-state" style="text-align: center; padding: 40px 20px; background: #f8fafc; border-radius: 8px; border: 2px dashed #e2e8f0; margin-top: 10px;">
+                            <i class="fas fa-clipboard-list" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 15px;"></i>
+                            <p style="color: #64748b; font-weight: 500; margin-bottom: 15px;">Aún no tienes tareas pendientes.</p>
+                            <button type="button" class="btn-primary" onclick="abrirModalNuevaTarea()" style="padding: 8px 20px; font-size: 0.9rem; border-radius: 20px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-plus"></i> Crear mi primera tarea
+                            </button>
                         </div>
                     @endforelse
                 </ul>
             </section>
 
-            {{-- Sección: Tareas Completadas --}}
-            @if($completadas->count() > 0)
+            {{-- SECCIÓN 2: EN PROGRESO --}}
             <section class="task-section mt-4">
-                <h3 class="section-title text-muted">Completadas</h3>
-                <ul class="task-list">
-                    @foreach($completadas as $tarea)
-                        <li class="task-item completed">
-                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check">
+                <h3 class="section-title" style="color: #0284c7; border-color: #0284c7;">En Progreso</h3>
+                <ul class="task-list sortable-list" id="list-in_progress" data-status="in_progress" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($enProgreso as $tarea)
+                        <li class="task-item draggable-item" style="border-left-color: #0284c7;" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
                                 @csrf @method('PATCH') 
-                                <input type="hidden" name="estado" value="pendiente">
-                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Desmarcar">
+                                <input type="hidden" name="status" value="completed">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" title="Completar">
                             </form>
+                            
+                            <div class="content" onclick="abrirModalEditar(this)" 
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="" 
+                                data-archivos="{{ json_encode($tarea->attachments ?? []) }}">
 
-                            <div class="content">
-                                <span class="title">{{ $tarea->titulo }}</span>
+                                <span class="title">{{ $tarea->title }}</span>
+                                <div class="tags">
+                                    <span class="tag priority-{{ strtolower($tarea->priority ?? 'medium') }}">
+                                        @if($tarea->priority == 'high') ALTA @elseif($tarea->priority == 'low') BAJA @else MEDIA @endif
+                                    </span>
+                                    @foreach($tarea->labels ?? [] as $etiqueta)
+                                        <span class="tag tag-custom" style="background-color: {{ $etiqueta->color ?? '#eee' }}; color: #fff;">{{ $etiqueta->name }}</span>
+                                    @endforeach
+                                </div>
                                 <div class="task-meta">
-                                    <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
+                                    @if(!empty($tarea->due_date))
+                                        <span class="meta-date {{ \Carbon\Carbon::parse($tarea->due_date)->isPast() ? 'overdue' : '' }}">
+                                            <i class="far fa-clock"></i> {{ $tarea->due_date }}
+                                        </span>
+                                    @endif
+                                    
+                                    @if(!empty($tarea->attachments) && is_array($tarea->attachments))
+                                        <div class="task-evidences" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px;">
+                                            @foreach($tarea->attachments as $adjunto)
+                                                <a href="{{ url('/task/' . $tarea->id . '/download?path=' . urlencode($adjunto['path'])) }}" target="_blank" class="meta-file" title="{{ $adjunto['original_name'] }}" onclick="event.stopPropagation();" style="color: #2563eb; text-decoration: none; font-size: 0.75rem; background: #eff6ff; padding: 4px 8px; border-radius: 4px; border: 1px solid #bfdbfe;">
+                                                    <i class="fas fa-file-alt"></i> {{ \Illuminate\Support\Str::limit($adjunto['original_name'], 15) }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
                             </div>
                             
                             <div class="actions">
-                                <form action="/tareas/{{ $tarea->id ?? 0 }}" method="POST" onsubmit="return confirm('¿Eliminar esta tarea permanentemente?');">
-                                    @csrf @method('DELETE')
+                                <button class="btn-icon edit" onclick="abrirModalEditar(this.parentElement.previousElementSibling)" title="Editar"><i class="fas fa-pen"></i></button>
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
+                                @csrf @method('DELETE')
+                                    <button type="submit" class="btn-icon delete" title="Eliminar"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
+                        </li>
+                    @empty
+                        <div class="empty-state" style="text-align: center; padding: 30px 20px; color: #94a3b8;">
+                            <i class="fas fa-tasks" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+                            <p style="font-size: 0.9rem;">No hay tareas en progreso.</p>
+                            <p style="font-size: 0.8rem; margin-top: 5px;">Arrastra una tarea aquí para comenzar a trabajar en ella.</p>
+                        </div>
+                    @endforelse
+                </ul>
+            </section>
+
+            {{-- SECCIÓN 3: COMPLETADAS --}}
+            <section class="task-section mt-4">
+                <h3 class="section-title text-muted">Completadas</h3>
+                <ul class="task-list sortable-list" id="list-completed" data-status="completed" style="min-height: 50px; padding-bottom: 20px;">
+                    @forelse($completadas as $tarea)
+                        <li class="task-item completed draggable-item" data-id="{{ $tarea->id }}">
+                            <div class="drag-handle" title="Arrastrar"><i class="fas fa-grip-vertical"></i></div>
+                            
+                            <form action="/tareas/{{ $tarea->id ?? 0 }}/estado" method="POST" class="task-form-check" onclick="event.stopPropagation();">
+                                @csrf @method('PATCH') 
+                                <input type="hidden" name="status" value="pending">
+                                <input type="checkbox" class="task-check" onchange="this.form.submit()" checked title="Devolver a pendientes">
+                            </form>
+                            <div class="content" onclick="abrirModalEditar(this)"
+                                data-id="{{ $tarea->id }}" data-titulo="{{ $tarea->title }}" 
+                                data-descripcion="{{ $tarea->description }}" data-fecha_limite="{{ $tarea->due_date }}" 
+                                data-prioridad="{{ $tarea->priority }}" data-estado="{{ $tarea->status }}"
+                                data-etiquetas="{{ json_encode(isset($tarea->labels) ? $tarea->labels->pluck('id') : []) }}"
+                                data-archivo="" 
+                                data-archivos="{{ json_encode($tarea->attachments ?? []) }}">
+                                
+                                <span class="title">{{ $tarea->title }}</span>
+                                <div class="task-meta">
+                                    <span>Completada el {{ \Carbon\Carbon::now()->format('d/m/Y') }}</span>
+                                    
+                                    @if(!empty($tarea->attachments) && is_array($tarea->attachments))
+                                        <div class="task-evidences" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; margin-left: 15px;">
+                                            @foreach($tarea->attachments as $adjunto)
+                                                <a href="{{ url('/task/' . $tarea->id . '/download?path=' . urlencode($adjunto['path'])) }}" target="_blank" class="meta-file" title="{{ $adjunto['original_name'] }}" onclick="event.stopPropagation();" style="color: #64748b; text-decoration: none; font-size: 0.75rem; background: #f1f5f9; padding: 4px 8px; border-radius: 4px; border: 1px solid #e2e8f0;">
+                                                    <i class="fas fa-file-alt"></i> {{ \Illuminate\Support\Str::limit($adjunto['original_name'], 15) }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="actions">
+                                <form action="{{ url('/task/' . $tarea->id) }}" method="POST" onsubmit="confirmarEliminacion(event, this, 'tarea')">
+                                @csrf @method('DELETE')
                                     <button type="submit" class="btn-icon delete"><i class="fas fa-trash"></i></button>
                                 </form>
                             </div>
                         </li>
-                    @endforeach
+                    @empty
+                    @endforelse
                 </ul>
             </section>
-            @endif
         </div>
     </main>
 
-    {{-- MODAL PRINCIPAL: Crear / Editar --}}
+    {{-- MODAL PRINCIPAL: Crear / Editar Tareas --}}
     <div class="modal-overlay" id="task-modal">
         <div class="modal-card">
             <div class="modal-header">
                 <h2 id="modal-titulo-principal">Nueva Tarea</h2>
-                <button class="btn-close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
+                <button type="button" class="btn-close-modal" onclick="cerrarModal('task-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            <form id="form-tarea" action="/tareas" method="POST" enctype="multipart/form-data">
+            <form action="{{ url('/task/create') }}" method="POST" id="form-tarea" enctype="multipart/form-data">
                 @csrf
-                <input type="hidden" name="_method" id="metodo-formulario" value="POST">
+                <input type="hidden" name="_method" id="metodo-formulario" value="{{ old('_method', 'POST') }}">
                 
                 <div class="input-group">
                     <label class="input-label">TÍTULO</label>
-                    <input type="text" name="titulo" id="input-titulo" required class="modern-input" placeholder="Ej. Estudiar para el examen...">
+                    <input type="text" name="title" id="input-titulo" required class="modern-input @error('title') is-invalid @enderror" placeholder="Ej. Estudiar para el examen..." value="{{ old('title') }}">
+                    @error('title') <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block; font-weight: 500;"><i class="fas fa-exclamation-circle"></i> {{ $message }}</span> @enderror
                 </div>
                 
                 <div class="input-group">
                     <label class="input-label">DESCRIPCIÓN</label>
-                    <textarea name="descripcion" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea..."></textarea>
+                    <textarea name="description" id="input-descripcion" rows="3" class="modern-input" placeholder="Detalles de la tarea...">{{ old('description') }}</textarea>
                 </div>
 
                 <div class="input-group">
-                    <label class="input-label">ETIQUETAS <small>(Ctrl + Clic para varias)</small></label>
-                    <select name="etiquetas[]" id="input-etiquetas" multiple class="modern-input select-multiple">
-                        @foreach($etiquetas_usuario ?? [] as $etiqueta)
-                            <option value="{{ $etiqueta->id }}">{{ $etiqueta->nombre }}</option>
-                        @endforeach
-                    </select>
+                    <label class="input-label" style="display: flex; justify-content: space-between; align-items: flex-end;">
+                        <span><i class="fas fa-tags"></i> CATEGORÍAS (Opcional)</span>
+                    </label>
+                    
+                    <div class="labels-search-container" style="position: relative; margin-bottom: 10px;">
+                        <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 0.85rem;"></i>
+                        <input type="text" id="buscador-etiquetas" placeholder="Buscar etiqueta..." class="modern-input" style="padding-left: 35px; height: 36px; font-size: 0.85rem; width: 100%;">
+                    </div>
+
+                    <div class="labels-grid-selector" id="task-labels-container">
+                        @forelse($labels ?? [] as $etiqueta)
+                            <label class="label-checkbox-wrapper" title="{{ $etiqueta->name }}">
+                                <input type="checkbox" name="labels[]" value="{{ $etiqueta->id }}" class="label-checkbox-input" {{ (is_array(old('labels')) && in_array($etiqueta->id, old('labels'))) ? 'checked' : '' }}>
+                                <span class="label-pill" style="--tag-color: {{ $etiqueta->color }};">
+                                    <span class="color-dot" style="background-color: {{ $etiqueta->color }};"></span>
+                                    <span class="label-text-content">{{ $etiqueta->name }}</span>
+                                </span>
+                            </label>
+                        @empty
+                            <p class="empty-labels-msg"><i class="fas fa-info-circle"></i> No tienes etiquetas. Crea una desde "Mis Etiquetas".</p>
+                        @endforelse
+                        <div id="msg-busqueda-vacia" class="empty-labels-msg" style="display: none; width: 100%; text-align: center; color: #94a3b8;"><i class="fas fa-search-minus"></i> No se encontraron etiquetas.</div>
+                    </div>
                 </div>
 
                 <div class="modal-row">
@@ -200,32 +343,52 @@
                     </div>
                     <div class="input-group half">
                         <label class="input-label">FECHA LÍMITE</label>
-                        <input type="date" name="fecha_limite" id="input-fecha" class="modern-input">
+                        <input type="date" name="due_date" id="input-fecha" class="modern-input" value="{{ old('due_date') }}">
                     </div>
                 </div>
 
                 <div class="modal-row">
                     <div class="input-group half">
                         <label class="input-label">PRIORIDAD</label>
-                        <select name="prioridad" id="input-prioridad" class="modern-input">
-                            <option value="baja">Baja</option>
-                            <option value="media">Media</option>
-                            <option value="alta" selected>Alta</option>
+                        <select name="priority" id="input-prioridad" class="modern-input">
+                            <option value="low" {{ old('priority') == 'low' ? 'selected' : '' }}>Baja</option>
+                            <option value="medium" {{ old('priority', 'medium') == 'medium' ? 'selected' : '' }}>Media</option>
+                            <option value="high" {{ old('priority') == 'high' ? 'selected' : '' }}>Alta</option>
                         </select>
                     </div>
                     <div class="input-group half">
                         <label class="input-label">ESTADO</label>
-                        <select name="estado" id="input-estado" class="modern-input">
-                            <option value="pendiente" selected>Pendiente</option>
-                            <option value="progreso">En Progreso</option>
-                            <option value="completada">Completada</option>
+                        <select name="status" id="input-estado" class="modern-input">
+                            <option value="pending" {{ old('status', 'pending') == 'pending' ? 'selected' : '' }}>Pendiente</option>
+                            <option value="in_progress" {{ old('status') == 'in_progress' ? 'selected' : '' }}>En Progreso</option>
+                            <option value="completed" {{ old('status') == 'completed' ? 'selected' : '' }}>Completada</option>
                         </select>
                     </div>
                 </div>
 
+                {{-- LA NUEVA SECCIÓN DE MÚLTIPLES ARCHIVOS CON IDS RESTAURADOS --}}
                 <div class="input-group">
-                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR ARCHIVO</label>
-                    <input type="file" name="documento" class="file-input" accept=".pdf,.doc,.docx,.jpg,.png">
+                    <label class="input-label"><i class="fas fa-paperclip"></i> ADJUNTAR EVIDENCIAS (Máx 5)</label>
+                    <input type="file" name="attachments[]" id="file-upload-input" class="file-input modern-input" accept=".pdf,.doc,.docx,.jpg,.png,.jpeg" multiple>
+
+                    <div id="archivo-actual-container" style="display: none; margin-top: 12px;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: #64748b; margin-bottom: 6px; display: block;">ARCHIVOS GUARDADOS EN LA TAREA:</label>
+                        <ul id="existing-files-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
+                    </div>
+
+                    <div id="new-files-container" style="display: none; margin-top: 12px;">
+                        <label style="font-size: 0.75rem; font-weight: bold; color: #0ea5e9; margin-bottom: 6px; display: block;">NUEVOS ARCHIVOS A SUBIR:</label>
+                        <ul id="file-preview-list" style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column;"></ul>
+                    </div>
+                    
+                    @if($errors->any())
+                        <div style="margin-top: 8px; font-size: 0.8rem; color: #d97706; background: #fef3c7; padding: 6px 10px; border-radius: 4px; border: 1px solid #fcd34d;">
+                            <i class="fas fa-exclamation-triangle"></i> Por seguridad, <strong>debes volver a seleccionar tus nuevos archivos</strong>.
+                        </div>
+                    @endif
+                    @error('attachments.*')
+                        <span class="validation-error" style="color: #ef4444; font-size: 0.85rem; margin-top: 5px; display: block;">{{ $message }}</span>
+                    @enderror
                 </div>
 
                 <div class="form-actions">
@@ -236,85 +399,227 @@
         </div>
     </div>
 
-    {{-- MODAL SECUNDARIO: Etiquetas --}}
+  {{-- ==========================================
+         MODAL SECUNDARIO: PANEL CRUD DE ETIQUETAS
+         ========================================== --}}
     <div class="modal-overlay" id="label-modal">
-        <div class="modal-card modal-sm">
+        <div class="modal-card modal-sm label-modal-card">
             <div class="modal-header">
-                <h2>Mis Etiquetas</h2>
-                <button class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
+                <h2 id="modal-titulo-etiqueta">Mis Etiquetas</h2>
+                <button type="button" class="btn-close-modal" onclick="cerrarModal('label-modal')"><i class="fas fa-times"></i></button>
             </div>
             
-            <form action="/etiquetas" method="POST" class="tag-form">
+            <form action="{{ url('/label/create') }}" method="POST" class="tag-form" id="form-etiqueta">
                 @csrf
-                <div class="modal-row">
-                    <div class="input-group half">
-                        <label class="input-label">NOMBRE</label>
-                        <input type="text" name="nombre" required class="modern-input" placeholder="Ej. Proyecto">
+                <input type="hidden" name="_method" id="metodo-etiqueta" value="POST">
+                
+                {{-- Contenedor Flex para alinear Nombre a la izquierda y Color a la derecha --}}
+                <div style="display: flex; gap: 15px; align-items: flex-start; margin-bottom: 15px;">
+                    
+                    {{-- Grupo NOMBRE --}}
+                    <div class="input-group" style="flex: 2; margin-bottom: 0;">
+                        <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">NOMBRE</label>
+                        <div style="position: relative;">
+                            <input type="text" name="nombre" id="input-nombre-etiqueta" required 
+                                   class="modern-input @error('nombre') is-invalid @enderror" 
+                                   placeholder="Ej. Proyecto" value="{{ old('nombre') }}" maxlength="30"
+                                   style="width: 100%; padding: 10px 45px 10px 12px; border: 1px solid #d1d5db; border-radius: 6px; height: 42px; box-sizing: border-box;">
+                            
+                            {{-- Contador flotante --}}
+                            <small id="contador-etiqueta" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #9ca3af; font-size: 0.75rem; pointer-events: none;">0/30</small>
+                        </div>
+                        
+                        <small id="mensaje-limite-etiqueta" style="color: #ef4444; display: none; font-size: 0.75rem; margin-top: 4px;">Límite alcanzado</small>
+                        
+                        @error('nombre')
+                            <div class="validation-error alert-backend" style="color: #ef4444; font-size: 0.8rem; margin-top: 4px;">
+                                <i class="fas fa-exclamation-circle"></i> {{ $message }}
+                            </div>
+                        @enderror
                     </div>
-                    <div class="input-group half">
-                        <label class="input-label">COLOR</label>
-                        <input type="color" name="color" value="#2563eb" class="color-picker">
+
+                    {{-- Grupo COLOR (Menú Desplegable) --}}
+                    <div class="input-group" style="flex: 1; margin-bottom: 0; position: relative;">
+                        <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 6px; display: block;">COLOR</label>
+                        
+                        <input type="hidden" name="color" id="input-color-etiqueta" value="{{ old('color', '#3b82f6') }}">
+                        
+                        <button type="button" id="color-picker-trigger" class="modern-input" style="display: flex; align-items: center; justify-content: space-between; height: 42px; cursor: pointer; padding: 5px 12px; background: white; width: 100%; border: 1px solid #d1d5db; border-radius: 6px; box-sizing: border-box;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span id="color-picker-preview" style="width: 18px; height: 18px; border-radius: 50%; background-color: {{ old('color', '#3b82f6') }};"></span>
+                                <span id="color-picker-text" style="color: #4b5563; font-weight: 500; font-size: 0.85rem;">{{ strtoupper(old('color', '#3B82F6')) }}</span>
+                            </div>
+                            <i class="fas fa-chevron-down" style="color: #9ca3af; font-size: 0.8rem;"></i>
+                        </button>
+
+                        {{-- EL MENÚ DESPLEGABLE OCULTO CORREGIDO --}}
+                        <div id="color-picker-menu" style="display: none; position: absolute; top: calc(100% + 5px); right: 0; width: 165px; background: white; border: 1px solid #d1d5db; border-radius: 8px; padding: 12px; z-index: 999; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);">
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; align-items: center;">
+                                @php
+                                    $colores = [
+                                        '#ef4444', '#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6',
+                                        '#6366f1', '#3b82f6', '#0ea5e9', '#06b6d4', '#14b8a6', '#10b981',
+                                        '#22c55e', '#84cc16', '#eab308', '#f59e0b', '#f97316', '#64748b'
+                                    ];
+                                @endphp
+                                @foreach($colores as $c)
+                                    <button type="button" class="color-swatch" data-color="{{ $c }}" onclick="seleccionarColorVisual('{{ $c }}')" style="width: 22px; height: 22px; border-radius: 50%; background-color: {{ $c }}; border: 2px solid transparent; cursor: pointer; padding: 0; transition: transform 0.1s;"></button>
+                                @endforeach
+
+                                <div style="width: 100%; height: 1px; background-color: #e5e7eb; margin: 4px 0;"></div>
+
+                                <div style="position: relative; width: 26px; height: 26px; border-radius: 50%; overflow: hidden; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.2); background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red);" title="Color personalizado">
+                                    <input type="color" value="#000000" onchange="seleccionarColorVisual(this.value)" style="position: absolute; top: -10px; left: -10px; width: 50px; height: 50px; cursor: pointer; opacity: 0;">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <button type="submit" class="btn-primary w-100">Crear Nueva</button>
+                </div> {{-- FIN DEL CONTENEDOR FLEX (Este es el div que faltaba) --}}
+                
+                <button type="submit" class="btn-primary" id="btn-submit-etiqueta" style="width: 100%; padding: 10px; border-radius: 6px; font-weight: 600;">Crear Nueva</button>
+                <button type="button" class="btn-text hide" id="btn-cancelar-etiqueta" onclick="resetearFormularioEtiquetas()" style="width: 100%; padding: 10px; margin-top: 5px; text-align: center; color: #6b7280; background: none; border: none; cursor: pointer;">Cancelar Edición</button>
             </form>
 
-            <div class="tag-manager">
-                <label class="input-label">ETIQUETAS ACTUALES</label>
-                <ul class="tag-list-manager">
-                    @forelse($etiquetas_usuario ?? [] as $etiqueta)
-                        <li class="tag-item-manager" style="border-left-color: {{ $etiqueta->color }};">
-                            <span>{{ $etiqueta->nombre }}</span>
-                            <form action="/etiquetas/{{ $etiqueta->id }}" method="POST" onsubmit="return confirm('¿Borrar etiqueta permanentemente?');">
-                                @csrf @method('DELETE')
-                                <button type="submit" class="btn-icon delete-tag"><i class="fas fa-trash"></i></button>
-                            </form>
+            <hr style="margin: 20px 0; border: none; border-top: 1px solid #e5e7eb;">
+
+            <div class="tag-manager-wrapper">
+                <label class="input-label" style="font-size: 0.75rem; font-weight: bold; color: #4b5563; margin-bottom: 10px; display: block;">ETIQUETAS ACTUALES</label>
+                <ul class="tag-list-manager" style="max-height: 220px; overflow-y: auto; padding: 0; margin: 0; list-style: none; padding-right: 5px;">
+                    @forelse($labels ?? [] as $etiqueta)
+                        <li class="tag-item-manager" style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f9fafb; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid {{ $etiqueta->color }};">
+                            <div class="tag-info-display" style="display: flex; align-items: center; gap: 10px;">
+                                <div class="color-indicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: {{ $etiqueta->color }};"></div>
+                                <span class="tag-text" style="font-weight: 500; color: #374151;">{{ $etiqueta->name }}</span>
+                            </div>
+                            <div class="actions" style="display: flex; gap: 10px;">
+                                <button type="button" title="Editar" style="background: none; border: none; cursor: pointer; color: #9ca3af; transition: color 0.2s;" onmouseover="this.style.color='#4f46e5'" onmouseout="this.style.color='#9ca3af'" onclick="editarEtiqueta('{{ $etiqueta->id }}', '{{ $etiqueta->name }}', '{{ $etiqueta->color }}')">
+                                    <i class="fas fa-pen"></i>
+                                </button>
+                                <form action="{{ url('/labels') }}/{{ $etiqueta->id }}" method="POST" style="margin: 0;" onsubmit="eliminarEtiquetaAjax(event, this)">
+                                    @csrf @method('DELETE')
+                                    <button type="submit" title="Eliminar" style="background: none; border: none; cursor: pointer; color: #9ca3af;"><i class="fas fa-trash"></i></button>
+                                </form>
+                            </div>
                         </li>
                     @empty
-                        <p class="text-muted text-center"><small>No hay etiquetas creadas.</small></p>
+                        <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 15px; text-align: center;">No has creado ninguna etiqueta.</p>
                     @endforelse
                 </ul>
             </div>
         </div>
     </div>
 
+    {{-- SCRIPTS GLOBALES DEL SISTEMA --}}
+    @include('partials.scripts')
+
+    {{-- =========================================================
+         EL MOTOR DE JAVASCRIPT PARA MÚLTIPLES ARCHIVOS
+         ========================================================= --}}
     <script>
-        function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
-        function abrirModalEtiquetas() { document.getElementById('label-modal').style.display = 'flex'; }
-        
-        function abrirModalNuevaTarea() {
-            const form = document.getElementById('form-tarea');
-            document.getElementById('modal-titulo-principal').innerText = 'Nueva Tarea';
-            form.action = '/tareas';
-            document.getElementById('metodo-formulario').value = 'POST';
-            form.reset();
-            
-            document.getElementById('input-estado').value = 'pendiente';
-            document.getElementById('btn-submit-tarea').innerText = 'Guardar Tarea';
-            
-            Array.from(document.getElementById('input-etiquetas').options).forEach(opt => opt.selected = false);
-            document.getElementById('task-modal').style.display = 'flex';
-        }
+        let modalDataTransfer = new DataTransfer();
 
-        function abrirModalEditar(elemento) {
-            document.getElementById('modal-titulo-principal').innerText = 'Editar Tarea';
-            document.getElementById('form-tarea').action = '/tareas/' + elemento.getAttribute('data-id');
-            document.getElementById('metodo-formulario').value = 'PUT';
-            
-            document.getElementById('input-titulo').value = elemento.getAttribute('data-titulo');
-            document.getElementById('input-descripcion').value = elemento.getAttribute('data-descripcion');
-            document.getElementById('input-fecha').value = elemento.getAttribute('data-fecha_limite');
-            document.getElementById('input-prioridad').value = elemento.getAttribute('data-prioridad');
-            document.getElementById('input-estado').value = elemento.getAttribute('data-estado');
-            
-            let etiquetas = JSON.parse(elemento.getAttribute('data-etiquetas') || '[]');
-            Array.from(document.getElementById('input-etiquetas').options).forEach(opt => {
-                opt.selected = etiquetas.includes(parseInt(opt.value));
+        const fileInputMulti = document.getElementById('file-upload-input');
+        if(fileInputMulti) {
+            fileInputMulti.addEventListener('change', function(e) {
+                let nuevosArchivos = this.files;
+                for(let i = 0; i < nuevosArchivos.length; i++) {
+                    if(modalDataTransfer.items.length >= 5) {
+                        Swal.fire('Límite alcanzado', 'Solo puedes adjuntar un máximo de 5 archivos.', 'warning');
+                        break;
+                    }
+                    modalDataTransfer.items.add(nuevosArchivos[i]);
+                }
+                this.files = modalDataTransfer.files;
+                renderizarArchivosNuevos();
             });
-
-            document.getElementById('btn-submit-tarea').innerText = 'Actualizar Cambios';
-            document.getElementById('task-modal').style.display = 'flex';
         }
+
+        function renderizarArchivosNuevos() {
+            const list = document.getElementById('file-preview-list');
+            const container = document.getElementById('new-files-container');
+            list.innerHTML = '';
+
+            if(modalDataTransfer.items.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'block';
+            for(let i = 0; i < modalDataTransfer.files.length; i++) {
+                const file = modalDataTransfer.files[i];
+                const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                
+                list.innerHTML += `
+                    <li class="file-preview-item">
+                        <div class="file-preview-info">
+                            <i class="fas fa-file-upload" style="color: #0ea5e9;"></i>
+                            <span title="${file.name}">${file.name} (${sizeMB} MB)</span>
+                        </div>
+                        <button type="button" class="file-remove-btn" onclick="eliminarArchivoNuevo(${i})" title="Descartar"><i class="fas fa-times"></i></button>
+                    </li>
+                `;
+            }
+        }
+
+        function eliminarArchivoNuevo(index) {
+            const tempDT = new DataTransfer();
+            for(let i = 0; i < modalDataTransfer.files.length; i++) {
+                if(i !== index) tempDT.items.add(modalDataTransfer.files[i]);
+            }
+            modalDataTransfer = tempDT; 
+            document.getElementById('file-upload-input').files = modalDataTransfer.files; 
+            renderizarArchivosNuevos(); 
+        }
+
+        function eliminarArchivoViejo(index) {
+            document.getElementById('existing-file-' + index).remove();
+            if(document.querySelectorAll('.existing-file-item').length === 0) {
+                document.getElementById('archivo-actual-container').style.display = 'none';
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const contentClick = e.target.closest('.content');
+            
+            if(contentClick && contentClick.hasAttribute('data-archivos')) {
+                modalDataTransfer = new DataTransfer();
+                if(fileInputMulti) fileInputMulti.files = modalDataTransfer.files;
+                renderizarArchivosNuevos();
+
+                const archivosJSON = contentClick.getAttribute('data-archivos');
+                const existingList = document.getElementById('existing-files-list');
+                const existingContainer = document.getElementById('archivo-actual-container');
+                
+                if(existingList && existingContainer) {
+                    existingList.innerHTML = '';
+                    if(archivosJSON && archivosJSON !== 'null' && archivosJSON !== '[]' && archivosJSON !== '') {
+                        const archivos = JSON.parse(archivosJSON);
+                        existingContainer.style.display = 'block';
+                        
+                        archivos.forEach((archivo, index) => {
+                            existingList.innerHTML += `
+                                <li class="file-preview-item existing-file-item" id="existing-file-${index}">
+                                    <div class="file-preview-info">
+                                        <i class="fas fa-database" style="color: #64748b;"></i>
+                                        <span>${archivo.original_name}</span>
+                                        <input type="hidden" name="retained_files[]" value="${archivo.path}">
+                                    </div>
+                                    <button type="button" class="file-remove-btn" onclick="eliminarArchivoViejo(${index})" title="Eliminar del servidor"><i class="fas fa-trash"></i></button>
+                                </li>
+                            `;
+                        });
+                    } else {
+                        existingContainer.style.display = 'none';
+                    }
+                }
+            } else if (e.target.closest('button[onclick="abrirModalNuevaTarea()"]')) {
+                modalDataTransfer = new DataTransfer();
+                if(fileInputMulti) fileInputMulti.files = modalDataTransfer.files;
+                renderizarArchivosNuevos();
+                document.getElementById('archivo-actual-container').style.display = 'none';
+                document.getElementById('existing-files-list').innerHTML = '';
+            }
+        });
     </script>
 </body>
 </html>
