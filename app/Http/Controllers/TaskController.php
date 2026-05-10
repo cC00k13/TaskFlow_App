@@ -12,30 +12,45 @@ use Illuminate\Http\JsonResponse;
 
 class TaskController extends Controller
 {
-    public function create(): View 
+    public function create(): View
     {
         return view('task.create');
     }
 
-    public function index()
+    public function index(Request $request)
     {
+        $query = Task::where('user_id', Auth::id());
 
-        //Descomentar cuando se haya arreglado el problema de la relacion entre el User model y Task controller
-        /*$tasks = Auth::user()
-            ->tasks()
-            ->latest()  
-            ->get();
+        // Filter by priority if provided
+        if ($request->has('priority') && $request->filled('priority')) {
+            $query->where('priority', $request->input('priority'));
+        }
 
-        return view('tasks.index', compact('tasks')); */
+        // Determine sort column (deadline or created_at as default)
+        $sortBy = $request->input('sort_by', 'created_at');
 
-        $tasks = Task::where('user_id', Auth::id())
-        ->latest()
-        ->get();
+        // Only allow specific columns to prevent SQL injection
+        $allowedSortColumns = ['deadline', 'created_at', 'priority', 'title'];
+
+        if (!in_array($sortBy, $allowedSortColumns)) {
+            $sortBy = 'created_at';
+        }
+
+        // Determine sort direction
+        $sortDirection = $request->input('sort', 'desc'); // default to latest
+
+        if (!in_array(strtolower($sortDirection), ['asc', 'desc'])) {
+            $sortDirection = 'desc';
+        }
+
+        $query->orderBy($sortBy, $sortDirection);
+
+        $tasks = $query->get();
 
         return view('tasks.index', compact('tasks'));
     }
 
-    public function store(Request $request): RedirectResponse 
+    public function store(Request $request): RedirectResponse
     {
         $validated = $request -> validate([
             'title' => 'required|max:255',
@@ -49,7 +64,7 @@ class TaskController extends Controller
 
     public function edit(Task $task): View
     {
-                
+
         return view('tasks.edit', compact('task'));
     }
 
@@ -60,9 +75,9 @@ class TaskController extends Controller
             'description' => 'sometimes|nullable|string|max:1000',
             'date' => 'sometimes|date|after_or_equal:today',
         ]);
-        
+
         $task->update($validated);
-        
+
         return redirect()
             ->back()
             ->with('success', 'Task updated successfully');
