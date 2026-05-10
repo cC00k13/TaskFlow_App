@@ -23,6 +23,15 @@ class TaskController extends Controller
     {
         $query = Task::where('user_id', Auth::id());
 
+        // BÚSQUEDA: filtrar por título o descripción
+        if ($request->filled('search')) {
+        $search = $request->input('search');
+        $query->where(function ($q) use ($search) {
+            $q->where('title', 'like', "%{$search}%")
+              ->orWhere('description', 'like', "%{$search}%");
+        });
+    }
+
         // Filter by priority if provided
         if ($request->has('priority') && $request->filled('priority')) {
             $query->where('priority', $request->input('priority'));

@@ -67,9 +67,16 @@
 
             <section class="controls">
                 <div class="search-bar">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" placeholder="Buscar tareas...">
-                    <button class="btn-primary" onclick="abrirModalNuevaTarea()"><i class="fas fa-plus"></i> Nueva Tarea</button>
+                    <form method="GET" action="{{ route('tasks.index') }}" class="search-form">
+                        <i class="fas fa-search search-icon"></i>
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Buscar tareas...">
+                        <button type="submit" class="btn-primary">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                        <button type="button" class="btn-primary" onclick="abrirModalNuevaTarea()">
+                            <i class="fas fa-plus"></i> Nueva Tarea
+                        </button>
+                    </form>
                 </div>
                 
                 <div class="filters-and-summary">
